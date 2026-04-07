@@ -1,18 +1,17 @@
-# Open Kitchen Demo Merge
+# Open Kitchen Demo
 
-This is a cleaned demo build that merges the best usable parts of both project folders:
+This is a cleaned demo build:
 - working create/view recipe flow
 - working SQLite database with demo records
 - search by title, ingredient, dietary tag, and allergen
 - ingredient scaling on the create page and recipe detail page
 - cleaner, more polished styling
-- unrelated class demo files removed
 
 ## Run steps (Windows PowerShell)
 
 ### 1) Go into the project folder
 ```powershell
-cd "PATH\TO\open_kitchen_demo_merged"
+cd "PATH\TO\csc330projectdemo"
 ```
 
 ### 2) Install dependencies
