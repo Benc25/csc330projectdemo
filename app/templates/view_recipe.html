@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} | The Open Kitchen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+
+<section class="recipe-view-shell">
+    <div class="recipe-hero">
+        <div>
+            <div class="pill-row push-bottom-small">
+                {% for rc in categories %}
+                <span class="mini-pill">{{ rc.category.name }}</span>
+                {% endfor %}
+                {% if not categories %}<span class="mini-pill">Recipe</span>{% endif %}
+            </div>
+            <h1>{{ recipe.title }}</h1>
+            <p class="lead">{{ recipe.description or 'A saved Open Kitchen recipe.' }}</p>
+            <div class="pill-row push-top-small">
+                <span class="pill">Serves {{ recipe.baseServings }}</span>
+                {% if recipe.prepTime %}<span class="pill">Prep {{ recipe.prepTime }} min</span>{% endif %}
+                {% if recipe.cookTime %}<span class="pill">Cook {{ recipe.cookTime }} min</span>{% endif %}
+            </div>
+        </div>
+        <div class="scale-preview-box compact-view">
+            <label for="adjustServings">Adjust servings:</label>
+            <input type="number" id="adjustServings" min="1" value="{{ recipe.baseServings }}" oninput="scaleIngredients(this.value)">
+            <span>Live scaling demo</span>
+        </div>
+    </div>
+
+    <div class="content-grid">
+        <article class="panel-card">
+            <h2>Ingredients</h2>
+            <table class="ingredient-table view-mode">
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        <th>Quantity</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ing in ingredients %}
+                    <tr>
+                        <td>{{ ing.name }}</td>
+                        <td><span class="scaled-qty" data-base="{{ ing.quantity }}">{{ ing.quantity }}</span></td>
+                        <td>{{ ing.unit.abbreviation }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <article class="panel-card">
+            <h2>Recipe Details</h2>
+            {% if dietary_tags %}
+            <h3 class="tiny-heading">Dietary Tags</h3>
+            <div class="pill-row push-bottom-small">
+                {% for dt in dietary_tags %}
+                <span class="pill">{{ dt.dietaryTag.name }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if allergens %}
+            <h3 class="tiny-heading">Allergens</h3>
+            <div class="pill-row">
+                {% for ra in allergens %}
+                <span class="pill allergen-pill">⚠ {{ ra.allergen.name }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <p class="muted-small push-top">Created {{ recipe.dateCreated.strftime('%Y-%m-%d') }}</p>
+        </article>
+    </div>
+
+    <article class="panel-card push-top">
+        <h2>Instructions</h2>
+        <div class="instructions-box">{{ recipe.instructions }}</div>
+    </article>
+</section>
+
+<script>
+const baseServings = {{ recipe.baseServings }};
+function scaleIngredients(target) {
+    const adjusted = parseFloat(target);
+    if (!adjusted || adjusted <= 0) return;
+    const ratio = adjusted / baseServings;
+    document.querySelectorAll('.scaled-qty').forEach(el => {
+        const base = parseFloat(el.dataset.base);
+        el.textContent = (base * ratio).toFixed(2).replace(/\.00$/, '');
+    });
+}
+</script>
+{% endblock %}

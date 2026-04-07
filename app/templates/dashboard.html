@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | The Open Kitchen{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div>
+        <span class="eyebrow">Demo-ready collaborative recipe app</span>
+        <h1>Save family recipes, fork ideas, and share kitchen knowledge.</h1>
+        <p class="hero-copy">
+            This demo combines the working recipe creation flow from your version with the better search and scaling ideas from Hans's version,
+            then wraps it all in a cleaner UI so it feels like a real class project.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">Create Recipe</a>
+            <a href="{{ url_for('search', q='pasta') }}" class="btn btn-secondary">Try Search</a>
+        </div>
+    </div>
+    <div class="stats-panel">
+        <div class="stat-card"><span class="stat-number">{{ stats.recipes }}</span><span class="stat-label">Recipes</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.categories }}</span><span class="stat-label">Categories</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.tags }}</span><span class="stat-label">Dietary Tags</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.allergens }}</span><span class="stat-label">Allergens</span></div>
+    </div>
+</section>
+
+<section class="section-head">
+    <div>
+        <h2>Recipe Dashboard</h2>
+        <p>Browse existing demo recipes or create your own live in front of class.</p>
+    </div>
+</section>
+
+{% if featured %}
+<div class="card-grid">
+    {% for item in featured %}
+    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+        <article class="recipe-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+            </div>
+            <h3>{{ item.recipe.title }}</h3>
+            <p>{{ item.recipe.description or 'A saved recipe in your Open Kitchen dashboard.' }}</p>
+            <div class="pill-row">
+                <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                {% if item.recipe.prepTime %}<span class="pill">Prep {{ item.recipe.prepTime }} min</span>{% endif %}
+                {% if item.recipe.cookTime %}<span class="pill">Cook {{ item.recipe.cookTime }} min</span>{% endif %}
+            </div>
+            <div class="recipe-card-footer">Open recipe →</div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>No recipes yet</h3>
+    <p>Create one recipe and it will immediately show up here for your demo.</p>
+    <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">Create the first recipe</a>
+</div>
+{% endif %}
+{% endblock %}

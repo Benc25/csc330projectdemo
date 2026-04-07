@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}The Open Kitchen{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container nav-wrap">
+            <a class="brand" href="{{ url_for('dashboard') }}">
+                <span class="brand-mark">🍽</span>
+                <span>The Open Kitchen</span>
+            </a>
+            <form class="searchbar" action="{{ url_for('search') }}" method="get">
+                <input type="text" name="q" placeholder="Search by title, ingredient, tag, or allergen" value="{{ request.args.get('q', '') }}">
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </form>
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">+ Create Recipe</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container page-shell">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
