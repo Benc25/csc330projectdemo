@@ -1,0 +1,3 @@
+FLASK_APP=main.py
+FLASK_DEBUG=1
+SQLITE_DB=recipe.db
