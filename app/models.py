@@ -25,7 +25,7 @@ class MeasurementUnit(db.Model):
     isActive = db.Column(db.Boolean, default=True)
 
     ingredients = db.relationship('Ingredient', backref='unit', lazy=True)
-
+    
 class Recipe(db.Model):
     __tablename__ = 'recipes'
 
@@ -126,3 +126,13 @@ class QuickTip(db.Model):
     userID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    userID = db.Column(db.Integer, nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    recipeID = db.Column(db.Integer, nullable=True)
+    isRead = db.Column(db.Boolean, default=False)
+    dateCreated = db.Column(db.DateTime, default=datetime.now)
