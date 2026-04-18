@@ -317,3 +317,217 @@ h1, h2, h3 { margin: 0 0 10px; }
     .searchbar { order: 3; }
     .nav-links { justify-content: flex-start; }
 }
+
+/* ── Star Rating ─────────────────────────────────────────── */
+.rating-section { margin-bottom: 16px; }
+
+.avg-rating-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.star-display { display: inline-flex; gap: 2px; }
+.star-display .star { font-size: 1.4rem; }
+.star-display .filled  { color: #f4a523; }
+.star-display .half    { color: #f4a523; opacity: 0.55; }
+.star-display .empty   { color: #d9e2f2; }
+.avg-score { font-size: 1.3rem; font-weight: 800; color: var(--primary-dark); }
+
+/* Interactive picker */
+.star-form { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.star-picker { display: inline-flex; gap: 4px; }
+.star-label { cursor: pointer; line-height: 1; }
+.star-label input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; }
+.star-icon {
+    font-size: 2rem;
+    color: #d9e2f2;
+    transition: color .12s ease, transform .1s ease;
+    display: inline-block;
+}
+.star-icon.active, .star-icon.hover { color: #f4a523; }
+.star-label:hover .star-icon { transform: scale(1.15); }
+
+.btn-sm { padding: 8px 14px; font-size: .9rem; border-radius: 12px; }
+
+/* Card star display */
+.recipe-card-footer {
+    margin-top: 16px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.card-stars { display: inline-flex; align-items: center; gap: 3px; font-size: .85rem; }
+.star-on  { color: #f4a523; }
+.star-off { color: #d9e2f2; }
+.rating-score { color: var(--muted); font-weight: 600; margin-left: 4px; }
+.no-rating { font-weight: 400; }
+
+/* Popular card accent */
+.popular-card { border-color: #f4c15d; }
+.popular-badge { background: #fff3d4 !important; color: #7a5b13 !important; }
+
+/* ── Comments Section ────────────────────────────────────── */
+.comments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.comments-header h2 { margin: 0; }
+
+.sort-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: .9rem;
+}
+.sort-control select {
+    width: auto;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: .9rem;
+}
+
+.comment-form-wrap {
+    background: #f6f9ff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.comment-form-wrap textarea {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #ccd7ed;
+    padding: 12px 14px;
+    font: inherit;
+    resize: vertical;
+    background: white;
+    margin-bottom: 10px;
+}
+.comment-form-wrap textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(60,102,179,.12);
+}
+.comment-form-actions { display: flex; justify-content: flex-end; }
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.comment-item {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    transition: box-shadow .15s ease;
+}
+.comment-item:hover { box-shadow: 0 4px 14px rgba(40,62,113,.08); }
+
+.comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.comment-author {
+    font-weight: 800;
+    color: var(--primary-dark);
+    font-size: .95rem;
+}
+.comment-date {
+    font-size: .8rem;
+    color: var(--muted);
+}
+.comment-body {
+    margin: 0;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
+/* ── Leave a Comment unified section ─────────────────────── */
+.leave-comment-wrap { margin-bottom: 8px; }
+.leave-comment-wrap h2 { margin-bottom: 4px; }
+
+.leave-comment-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.leave-comment-rate-label {
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: var(--text);
+    text-transform: uppercase;
+}
+
+.comments-divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 28px 0 20px;
+}
+
+/* ── Recipe card delete button ───────────────────────────── */
+.recipe-card-wrap {
+    position: relative;
+}
+.delete-form {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    margin: 0;
+    z-index: 10;
+}
+.delete-btn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s ease, background .15s ease, color .15s ease;
+}
+.recipe-card-wrap:hover .delete-btn {
+    opacity: 1;
+}
+.delete-btn:hover {
+    background: #ffe0db;
+    color: #c0392b;
+}
+
+/* ── Notification panel ──────────────────────────────────── */
+.notif-unread {
+    background: #f0f5ff !important;
+    border-left: 3px solid var(--primary) !important;
+}
+.notif-delete-btn {
+    opacity: 0.4;
+    transition: opacity .15s ease, color .15s ease;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.notif-delete-btn:hover {
+    opacity: 1;
+    color: #c0392b !important;
+}
