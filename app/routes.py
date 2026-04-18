@@ -1,11 +1,12 @@
 from flask import render_template, request, redirect, url_for, session
 from sqlalchemy import or_, func
 from app import app, db
+from datetime import datetime
 from app.forms import CreateRecipeForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
-    Notification
+    Notification, Group, GroupMember, GroupMessage, GroupRecipe
 )
 
 DEMO_USER_ID = 1
@@ -174,11 +175,12 @@ def view_recipe(recipe_id):
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
 
-    # Pick up any notification that should trigger a toast (set by post_comment)
     toast_notif = None
     toast_id = session.pop('toast_notification_id', None)
     if toast_id:
         toast_notif = Notification.query.get(toast_id)
+
+    memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
 
     return render_template(
         'view_recipe.html',
@@ -195,6 +197,7 @@ def view_recipe(recipe_id):
         notifications=notifications,
         has_unread=has_unread,
         toast_notif=toast_notif,
+        memberships=memberships,
     )
 
 
@@ -308,3 +311,96 @@ def search():
     has_unread = any(not n.isRead for n in notifications)
     return render_template('search.html', query=query, results=results,
                            notifications=notifications, has_unread=has_unread)
+
+@app.route('/groups')
+def my_groups():
+    memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
+    groups = [m.group for m in memberships]
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('groups/index.html', groups=groups,
+                           notifications=notifications, has_unread=has_unread)
+
+
+@app.route('/groups/create', methods=['GET', 'POST'])
+def create_group():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+
+        new_group = Group(
+            leaderID=DEMO_USER_ID,
+            name=name,
+            description=description,
+            dateCreated=datetime.utcnow()
+        )
+        db.session.add(new_group)
+        db.session.flush()
+
+        membership = GroupMember(
+            groupID=new_group.id,
+            userID=DEMO_USER_ID,
+            dateJoined=datetime.utcnow()
+        )
+        db.session.add(membership)
+        db.session.commit()
+        return redirect(url_for('view_group', group_id=new_group.id))
+
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('groups/create.html',
+                           notifications=notifications, has_unread=has_unread)
+
+
+@app.route('/groups/<int:group_id>')
+def view_group(group_id):
+    group = Group.query.get_or_404(group_id)
+    messages = GroupMessage.query.filter_by(groupID=group_id).order_by(GroupMessage.dateSent).all()
+    shared_recipes = GroupRecipe.query.filter_by(groupID=group_id).all()
+    members = GroupMember.query.filter_by(groupID=group_id).all()
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('groups/view.html', group=group, messages=messages,
+                           shared_recipes=shared_recipes, members=members,
+                           notifications=notifications, has_unread=has_unread)
+
+
+@app.route('/groups/<int:group_id>/message', methods=['POST'])
+def send_message(group_id):
+    content = request.form.get('content')
+    msg = GroupMessage(
+        groupID=group_id,
+        senderID=DEMO_USER_ID,
+        content=content,
+        dateSent=datetime.utcnow()
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return redirect(url_for('view_group', group_id=group_id))
+
+
+@app.route('/groups/<int:group_id>/share/<int:recipe_id>', methods=['POST'])
+def share_recipe(group_id, recipe_id):
+    shared = GroupRecipe(
+        groupID=group_id,
+        recipeID=recipe_id,
+        sharedByID=DEMO_USER_ID,
+        dateSaved=datetime.utcnow()
+    )
+    db.session.add(shared)
+    db.session.commit()
+    return redirect(url_for('view_group', group_id=group_id))
+
+
+@app.route('/groups/<int:group_id>/add_member', methods=['POST'])
+def add_member(group_id):
+    group = Group.query.get_or_404(group_id)
+    email = request.form.get('email')
+    user = User.query.filter_by(email=email).first()
+    if user:
+        already_member = GroupMember.query.filter_by(groupID=group_id, userID=user.id).first()
+        if not already_member:
+            member = GroupMember(groupID=group_id, userID=user.id, dateJoined=datetime.utcnow())
+            db.session.add(member)
+            db.session.commit()
+    return redirect(url_for('view_group', group_id=group_id))

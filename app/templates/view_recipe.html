@@ -13,7 +13,13 @@
                 {% endfor %}
                 {% if not categories %}<span class="mini-pill">Recipe</span>{% endif %}
             </div>
-            <h1>{{ recipe.title }}</h1>
+            <h1>
+                {{ recipe.title }}
+                <button type="button" class="btn btn-secondary btn-sm ms-2"
+                        data-bs-toggle="modal" data-bs-target="#shareToGroupModal">
+                    Share to Group
+                </button>
+            </h1>
             <p class="lead">{{ recipe.description or 'A saved Open Kitchen recipe.' }}</p>
             <div class="pill-row push-top-small">
                 <span class="pill">Serves {{ recipe.baseServings }}</span>
@@ -54,7 +60,6 @@
         <article class="panel-card">
             <h2>Recipe Details</h2>
 
-            <!-- Community avg rating (read-only) -->
             <h3 class="tiny-heading">Community Rating</h3>
             <div class="avg-rating-display">
                 {% if avg_rating %}
@@ -102,17 +107,12 @@
         <div class="instructions-box">{{ recipe.instructions }}</div>
     </article>
 
-    <!-- Leave a Comment -->
     <article class="panel-card push-top" id="comments-section">
-
-        <!-- Combined comment + rating form -->
         <div class="leave-comment-wrap">
             <h2>Leave a Comment</h2>
             <p class="muted-small">Did you make this? Rate the recipe and share your thoughts.</p>
 
             <form method="POST" action="{{ url_for('post_comment', recipe_id=recipe.id) }}">
-
-                <!-- Star rating row (submits to post_comment, which also handles the hidden stars field) -->
                 <div class="leave-comment-rating-row">
                     <span class="leave-comment-rate-label">DID YOU MAKE THIS? RATE THE RECIPE!</span>
                     <div class="star-picker" id="starPicker">
@@ -137,7 +137,6 @@
             </form>
         </div>
 
-        <!-- Existing comments list -->
         {% if comments %}
         <div class="comments-divider"></div>
         <div class="comments-header">
@@ -168,8 +167,33 @@
     </article>
 </section>
 
+<!-- Share to Group Modal -->
+<div class="modal fade" id="shareToGroupModal" tabindex="-1" aria-labelledby="shareToGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareToGroupModalLabel">Share "{{ recipe.title }}" to a Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if memberships %}
+                    {% for m in memberships %}
+                    <form method="POST" action="{{ url_for('share_recipe', group_id=m.group.id, recipe_id=recipe.id) }}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ m.group.name }}</span>
+                            <button type="submit" class="btn btn-primary btn-sm">Share</button>
+                        </div>
+                    </form>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">You're not in any groups yet. <a href="{{ url_for('my_groups') }}">Create or join one.</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// ── Ingredient scaling ────────────────────────────────────
 const baseServings = {{ recipe.baseServings }};
 function scaleIngredients(target) {
     const adjusted = parseFloat(target);
@@ -181,7 +205,6 @@ function scaleIngredients(target) {
     });
 }
 
-// ── Star picker ───────────────────────────────────────────
 (function () {
     const picker = document.getElementById('starPicker');
     if (!picker) return;

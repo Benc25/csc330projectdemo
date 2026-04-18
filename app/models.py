@@ -138,3 +138,47 @@ class Notification(db.Model):
     recipeID = db.Column(db.Integer, nullable=True)
     isRead = db.Column(db.Boolean, default=False)
     dateCreated = db.Column(db.DateTime, default=datetime.now)
+
+class Group(db.Model):
+    __tablename__ = 'groups'
+    id = db.Column(db.Integer, primary_key=True)
+    leaderID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    dateCreated = db.Column(db.DateTime, nullable=False)
+
+    members = db.relationship('GroupMember', backref='group', lazy=True)
+    messages = db.relationship('GroupMessage', backref='group', lazy=True)
+
+
+class GroupMember(db.Model):
+    __tablename__ = 'group_members'
+    id = db.Column(db.Integer, primary_key=True)
+    groupID = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    userID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    dateJoined = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship('User', backref='memberships', lazy=True)
+
+
+class GroupMessage(db.Model):
+    __tablename__ = 'group_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    groupID = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    senderID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    dateSent = db.Column(db.DateTime, nullable=False)
+
+    sender = db.relationship('User', foreign_keys=[senderID])
+
+
+class GroupRecipe(db.Model):
+    __tablename__ = 'group_recipes'
+    id = db.Column(db.Integer, primary_key=True)
+    groupID = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    recipeID = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    sharedByID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    dateSaved = db.Column(db.DateTime, nullable=False)
+
+    recipe = db.relationship('Recipe', foreign_keys=[recipeID])
+    sharedBy = db.relationship('User', foreign_keys=[sharedByID])
