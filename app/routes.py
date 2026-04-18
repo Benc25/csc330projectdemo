@@ -1,37 +1,75 @@
-from flask import render_template, request, redirect, url_for
-from sqlalchemy import or_
+from flask import render_template, request, redirect, url_for, session
+from sqlalchemy import or_, func
 from app import app, db
 from app.forms import CreateRecipeForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
-    Category, DietaryTag, Allergen, MeasurementUnit
+    Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
+    Notification
 )
+
+DEMO_USER_ID = 1
+
+
+def _get_avg_rating(recipe_id):
+    result = db.session.query(func.avg(Rating.stars), func.count(Rating.id)).filter_by(recipeID=recipe_id).one()
+    avg = round(result[0], 1) if result[0] else None
+    count = result[1]
+    return avg, count
 
 
 def _recipe_card_data(recipe):
     ingredient_count = Ingredient.query.filter_by(recipeID=recipe.id).count()
     category_links = RecipeCategory.query.filter_by(recipeID=recipe.id).all()
     category_names = [rc.category.name for rc in category_links if rc.category]
-    avg_rating = None
+    avg_rating, rating_count = _get_avg_rating(recipe.id)
     return {
         'recipe': recipe,
         'ingredient_count': ingredient_count,
         'category_names': category_names,
         'avg_rating': avg_rating,
+        'rating_count': rating_count,
     }
+
+
+def _comment_author(comment):
+    user = User.query.get(comment.userID)
+    return f"{user.firstName} {user.lastName[0]}." if user else "Anonymous"
+
+
+def _get_notifications():
+    return Notification.query.filter_by(userID=DEMO_USER_ID).order_by(Notification.dateCreated.desc()).all()
 
 
 @app.route('/')
 def dashboard():
     recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).all()
     featured = [_recipe_card_data(r) for r in recipes[:6]]
+
+    rated_subq = (
+        db.session.query(Rating.recipeID, func.avg(Rating.stars).label('avg'), func.count(Rating.id).label('cnt'))
+        .group_by(Rating.recipeID)
+        .subquery()
+    )
+    popular_recipes = (
+        db.session.query(Recipe)
+        .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
+        .order_by(rated_subq.c.avg.desc(), rated_subq.c.cnt.desc())
+        .limit(3)
+        .all()
+    )
+    popular = [_recipe_card_data(r) for r in popular_recipes]
+
     stats = {
         'recipes': Recipe.query.count(),
         'categories': Category.query.count(),
         'tags': DietaryTag.query.count(),
         'allergens': Allergen.query.count(),
     }
-    return render_template('dashboard.html', featured=featured, stats=stats)
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('dashboard.html', featured=featured, stats=stats, popular=popular,
+                           notifications=notifications, has_unread=has_unread)
 
 
 @app.route('/recipe/create', methods=['GET', 'POST'])
@@ -111,7 +149,10 @@ def create_recipe():
         for _, messages in form.errors.items():
             errors.extend(messages)
 
-    return render_template('recipe_form.html', form=form, units=units, errors=errors)
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('recipe_form.html', form=form, units=units, errors=errors,
+                           notifications=notifications, has_unread=has_unread)
 
 
 @app.route('/recipe/<int:recipe_id>')
@@ -121,6 +162,23 @@ def view_recipe(recipe_id):
     categories = RecipeCategory.query.filter_by(recipeID=recipe_id).all()
     dietary_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
     allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
+    avg_rating, rating_count = _get_avg_rating(recipe_id)
+    user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+
+    sort = request.args.get('sort', 'newest')
+    order = Comment.dateCreated.asc() if sort == 'oldest' else Comment.dateCreated.desc()
+    comments = Comment.query.filter_by(recipeID=recipe_id).order_by(order).all()
+    for c in comments:
+        c.author_name = _comment_author(c)
+
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+
+    # Pick up any notification that should trigger a toast (set by post_comment)
+    toast_notif = None
+    toast_id = session.pop('toast_notification_id', None)
+    if toast_id:
+        toast_notif = Notification.query.get(toast_id)
 
     return render_template(
         'view_recipe.html',
@@ -129,7 +187,102 @@ def view_recipe(recipe_id):
         categories=categories,
         dietary_tags=dietary_tags,
         allergens=allergens,
+        avg_rating=avg_rating,
+        rating_count=rating_count,
+        user_rating=user_rating,
+        comments=comments,
+        sort=sort,
+        notifications=notifications,
+        has_unread=has_unread,
+        toast_notif=toast_notif,
     )
+
+
+@app.route('/recipe/<int:recipe_id>/comments', methods=['POST'])
+def post_comment(recipe_id):
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    # Save star rating if provided
+    try:
+        stars = int(request.form.get('stars', 0))
+    except (ValueError, TypeError):
+        stars = 0
+    if 1 <= stars <= 5:
+        existing = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+        if existing:
+            existing.stars = stars
+        else:
+            db.session.add(Rating(recipeID=recipe_id, userID=DEMO_USER_ID, stars=stars))
+
+    # Save comment and create notification
+    content = request.form.get('content', '').strip()
+    if content:
+        new_comment = Comment(recipeID=recipe_id, userID=DEMO_USER_ID, content=content)
+        db.session.add(new_comment)
+        db.session.flush()
+
+        author = _comment_author(new_comment)
+        new_notif = Notification(
+            userID=DEMO_USER_ID,
+            title='New Comment',
+            message=f'{author} commented on "{recipe.title}"',
+            recipeID=recipe_id,
+            isRead=False,
+        )
+        db.session.add(new_notif)
+        db.session.flush()
+        session['toast_notification_id'] = new_notif.id
+
+    db.session.commit()
+    return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+
+@app.route('/recipe/<int:recipe_id>/rate', methods=['POST'])
+def rate_recipe(recipe_id):
+    Recipe.query.get_or_404(recipe_id)
+    try:
+        stars = int(request.form.get('stars', 0))
+    except (ValueError, TypeError):
+        stars = 0
+
+    if stars < 1 or stars > 5:
+        return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+    existing = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+    if existing:
+        existing.stars = stars
+    else:
+        db.session.add(Rating(recipeID=recipe_id, userID=DEMO_USER_ID, stars=stars))
+    db.session.commit()
+    return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+
+@app.route('/recipe/<int:recipe_id>/delete', methods=['POST'])
+def delete_recipe(recipe_id):
+    Recipe.query.get_or_404(recipe_id)
+    Rating.query.filter_by(recipeID=recipe_id).delete()
+    Comment.query.filter_by(recipeID=recipe_id).delete()
+    Notification.query.filter_by(recipeID=recipe_id).delete()
+    recipe = Recipe.query.get(recipe_id)
+    db.session.delete(recipe)
+    db.session.commit()
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
+def delete_notification(notification_id):
+    notif = Notification.query.get_or_404(notification_id)
+    db.session.delete(notif)
+    db.session.commit()
+    # Return to the page the user came from
+    return redirect(request.referrer or url_for('dashboard'))
+
+
+@app.route('/notifications/mark-read', methods=['POST'])
+def mark_notifications_read():
+    Notification.query.filter_by(userID=DEMO_USER_ID, isRead=False).update({'isRead': True})
+    db.session.commit()
+    return redirect(request.referrer or url_for('dashboard'))
 
 
 @app.route('/search')
@@ -151,4 +304,7 @@ def search():
                 seen.add(recipe.id)
                 results.append(_recipe_card_data(recipe))
 
-    return render_template('search.html', query=query, results=results)
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('search.html', query=query, results=results,
+                           notifications=notifications, has_unread=has_unread)
