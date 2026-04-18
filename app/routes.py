@@ -8,6 +8,9 @@ from app.models import (
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
     Notification, Group, GroupMember, GroupMessage, GroupRecipe
 )
+import csv
+from io import StringIO
+from flask import Response
 
 DEMO_USER_ID = 1
 
@@ -487,3 +490,71 @@ def curator_user_profile(user_id):
                            messages=messages,
                            notifications=notifications,
                            has_unread=has_unread)
+
+import csv
+from io import StringIO
+from flask import Response
+
+@app.route('/curator/export/recipes')
+def export_recipes():
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    recipes = Recipe.query.all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'Title', 'Author', 'Description', 'Base Servings', 'Prep Time', 'Cook Time', 'Date Created'])
+    for r in recipes:
+        writer.writerow([r.id, r.title, f"{r.author.firstName} {r.author.lastName}", r.description, r.baseServings, r.prepTime, r.cookTime, r.dateCreated])
+    return Response(si.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=recipes.csv'})
+
+
+@app.route('/curator/export/users')
+def export_users():
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    users = User.query.all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'First Name', 'Last Name', 'Email', 'Role', 'Active', 'Date Created'])
+    for u in users:
+        writer.writerow([u.id, u.firstName, u.lastName, u.email, u.role, u.isActive, u.dateCreated])
+    return Response(si.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=users.csv'})
+
+
+@app.route('/curator/export/groups')
+def export_groups():
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    groups = Group.query.all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'Name', 'Description', 'Leader', 'Member Count', 'Date Created'])
+    for g in groups:
+        leader = User.query.get(g.leaderID)
+        writer.writerow([g.id, g.name, g.description, f"{leader.firstName} {leader.lastName}" if leader else 'N/A', len(g.members), g.dateCreated])
+    return Response(si.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=groups.csv'})
+
+
+@app.route('/curator/export/messages')
+def export_messages():
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    messages = GroupMessage.query.all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['ID', 'Sender', 'Group', 'Content', 'Date Sent'])
+    for m in messages:
+        writer.writerow([m.id, f"{m.sender.firstName} {m.sender.lastName}", m.group.name, m.content, m.dateSent])
+    return Response(si.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=messages.csv'})
