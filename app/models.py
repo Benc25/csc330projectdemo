@@ -129,6 +129,8 @@ class QuickTip(db.Model):
 
 
 class Notification(db.Model):
+    __tablename__ = 'notification'
+
     id = db.Column(db.Integer, primary_key=True)
     userID = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(100), nullable=False)
