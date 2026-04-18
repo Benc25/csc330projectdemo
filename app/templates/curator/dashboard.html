@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Curator Dashboard | The Open Kitchen{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div>
+        <span class="eyebrow">Curator Panel</span>
+        <h1>Welcome, Curator</h1>
+        <p class="hero-copy">Manage users, monitor recipes, and oversee the Open Kitchen community.</p>
+    </div>
+    <div class="stats-panel">
+        <div class="stat-card"><span class="stat-number">{{ stats.recipes }}</span><span class="stat-label">Recipes</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.users }}</span><span class="stat-label">Users</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.groups }}</span><span class="stat-label">Groups</span></div>
+        <div class="stat-card"><span class="stat-number">{{ stats.messages }}</span><span class="stat-label">Messages</span></div>
+    </div>
+</section>
+
+<!-- User Search -->
+<section class="section-head mt-4">
+    <div>
+        <h2>Search Users</h2>
+        <p>Find a user by name or email to view their profile.</p>
+    </div>
+</section>
+<form action="{{ url_for('curator_dashboard') }}" method="get" class="d-flex gap-2 mb-4">
+    <input type="text" name="q" class="form-control" placeholder="Search by name or email..."
+           value="{{ search_query }}">
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+<div class="card-grid">
+    {% for u in users %}
+    <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" class="recipe-card-link">
+        <article class="recipe-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill">{{ u.role }}</span>
+                <span class="muted-small">{{ 'Active' if u.isActive else 'Inactive' }}</span>
+            </div>
+            <h3>{{ u.firstName }} {{ u.lastName }}</h3>
+            <p>{{ u.email }}</p>
+            <div class="recipe-card-footer">
+                <span class="muted-small">Joined {{ u.dateCreated.strftime('%b %d, %Y') }}</span>
+                <span>View profile →</span>
+            </div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Most Popular Recipes -->
+<section class="section-head mt-4">
+    <div>
+        <h2>⭐ Most Popular Recipes</h2>
+        <p>Top-rated recipes across the platform.</p>
+    </div>
+</section>
+<div class="card-grid">
+    {% for item in popular %}
+    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+        <article class="recipe-card popular-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill popular-badge">★ Top Rated</span>
+                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+            </div>
+            <h3>{{ item.recipe.title }}</h3>
+            <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
+            <div class="recipe-card-footer">
+                <span class="card-stars">
+                    {% for i in range(1, 6) %}
+                    <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
+                    {% endfor %}
+                    <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
+                </span>
+                <span>Open →</span>
+            </div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Newest Recipes -->
+<section class="section-head mt-4">
+    <div>
+        <h2>🆕 Newest Recipes</h2>
+        <p>Most recently added recipes on the platform.</p>
+    </div>
+</section>
+<div class="card-grid">
+    {% for item in newest %}
+    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+        <article class="recipe-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+            </div>
+            <h3>{{ item.recipe.title }}</h3>
+            <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
+            <div class="recipe-card-footer">
+                <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
+                <span>Open →</span>
+            </div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

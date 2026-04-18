@@ -44,6 +44,10 @@ def _get_notifications():
 
 @app.route('/')
 def dashboard():
+    user = User.query.get(DEMO_USER_ID)
+    if user and user.role == 'curator':
+        return redirect(url_for('curator_dashboard'))
+
     recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).all()
     featured = [_recipe_card_data(r) for r in recipes[:6]]
 
@@ -404,3 +408,82 @@ def add_member(group_id):
             db.session.add(member)
             db.session.commit()
     return redirect(url_for('view_group', group_id=group_id))
+
+# ─── CURATOR ──────────────────────────────────────────────────────────────────
+
+@app.route('/curator')
+def curator_dashboard():
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    # Newest recipes
+    newest = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
+
+    # Most popular recipes
+    rated_subq = (
+        db.session.query(Rating.recipeID, func.avg(Rating.stars).label('avg'), func.count(Rating.id).label('cnt'))
+        .group_by(Rating.recipeID)
+        .subquery()
+    )
+    popular_recipes = (
+        db.session.query(Recipe)
+        .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
+        .order_by(rated_subq.c.avg.desc(), rated_subq.c.cnt.desc())
+        .limit(6)
+        .all()
+    )
+
+    # User search
+    search_query = request.args.get('q', '').strip()
+    if search_query:
+        users = User.query.filter(
+            or_(
+                User.firstName.ilike(f'%{search_query}%'),
+                User.lastName.ilike(f'%{search_query}%'),
+                User.email.ilike(f'%{search_query}%')
+            )
+        ).all()
+    else:
+        users = User.query.all()
+
+    stats = {
+        'recipes': Recipe.query.count(),
+        'users': User.query.count(),
+        'groups': Group.query.count(),
+        'messages': GroupMessage.query.count(),
+    }
+
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+
+    return render_template('curator/dashboard.html',
+                           newest=[_recipe_card_data(r) for r in newest],
+                           popular=[_recipe_card_data(r) for r in popular_recipes],
+                           users=users,
+                           search_query=search_query,
+                           stats=stats,
+                           notifications=notifications,
+                           has_unread=has_unread)
+
+@app.route('/curator/user/<int:user_id>')
+def curator_user_profile(user_id):
+    user = User.query.get(DEMO_USER_ID)
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    profile = User.query.get_or_404(user_id)
+    recipes = Recipe.query.filter_by(authorID=user_id).order_by(Recipe.dateCreated.desc()).all()
+    memberships = GroupMember.query.filter_by(userID=user_id).all()
+    messages = GroupMessage.query.filter_by(senderID=user_id).order_by(GroupMessage.dateSent.desc()).all()
+
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+
+    return render_template('curator/user_profile.html',
+                           profile=profile,
+                           recipes=[_recipe_card_data(r) for r in recipes],
+                           memberships=memberships,
+                           messages=messages,
+                           notifications=notifications,
+                           has_unread=has_unread)
