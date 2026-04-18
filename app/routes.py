@@ -412,8 +412,6 @@ def add_member(group_id):
             db.session.commit()
     return redirect(url_for('view_group', group_id=group_id))
 
-# ─── CURATOR ──────────────────────────────────────────────────────────────────
-
 @app.route('/curator')
 def curator_dashboard():
     user = User.query.get(DEMO_USER_ID)
