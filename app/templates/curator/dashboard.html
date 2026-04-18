@@ -8,10 +8,22 @@
         <p class="hero-copy">Manage users, monitor recipes, and oversee the Open Kitchen community.</p>
     </div>
     <div class="stats-panel">
-        <div class="stat-card"><span class="stat-number">{{ stats.recipes }}</span><span class="stat-label">Recipes</span></div>
-        <div class="stat-card"><span class="stat-number">{{ stats.users }}</span><span class="stat-label">Users</span></div>
-        <div class="stat-card"><span class="stat-number">{{ stats.groups }}</span><span class="stat-label">Groups</span></div>
-        <div class="stat-card"><span class="stat-number">{{ stats.messages }}</span><span class="stat-label">Messages</span></div>
+        <a href="{{ url_for('export_recipes') }}" class="stat-card" title="Download CSV">
+            <span class="stat-number">{{ stats.recipes }}</span>
+            <span class="stat-label">Recipes ↓</span>
+        </a>
+        <a href="{{ url_for('export_users') }}" class="stat-card" title="Download CSV">
+            <span class="stat-number">{{ stats.users }}</span>
+            <span class="stat-label">Users ↓</span>
+        </a>
+        <a href="{{ url_for('export_groups') }}" class="stat-card" title="Download CSV">
+            <span class="stat-number">{{ stats.groups }}</span>
+            <span class="stat-label">Groups ↓</span>
+        </a>
+        <a href="{{ url_for('export_messages') }}" class="stat-card" title="Download CSV">
+            <span class="stat-number">{{ stats.messages }}</span>
+            <span class="stat-label">Messages ↓</span>
+        </a>
     </div>
 </section>
 
