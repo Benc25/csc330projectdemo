@@ -53,6 +53,28 @@
 
         <article class="panel-card">
             <h2>Recipe Details</h2>
+
+            <!-- Community avg rating (read-only) -->
+            <h3 class="tiny-heading">Community Rating</h3>
+            <div class="avg-rating-display">
+                {% if avg_rating %}
+                    <div class="star-display" aria-label="{{ avg_rating }} out of 5 stars">
+                        {% for i in range(1, 6) %}
+                            {% if i <= avg_rating|round(0, 'floor')|int %}
+                                <span class="star filled">★</span>
+                            {% elif i - 0.5 <= avg_rating %}
+                                <span class="star half">★</span>
+                            {% else %}
+                                <span class="star empty">★</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="avg-score">{{ avg_rating }}<span class="muted-small"> / 5 ({{ rating_count }} rating{{ 's' if rating_count != 1 }})</span></span>
+                {% else %}
+                    <span class="muted-small">No ratings yet — be the first!</span>
+                {% endif %}
+            </div>
+
             {% if dietary_tags %}
             <h3 class="tiny-heading">Dietary Tags</h3>
             <div class="pill-row push-bottom-small">
@@ -79,9 +101,75 @@
         <h2>Instructions</h2>
         <div class="instructions-box">{{ recipe.instructions }}</div>
     </article>
+
+    <!-- Leave a Comment -->
+    <article class="panel-card push-top" id="comments-section">
+
+        <!-- Combined comment + rating form -->
+        <div class="leave-comment-wrap">
+            <h2>Leave a Comment</h2>
+            <p class="muted-small">Did you make this? Rate the recipe and share your thoughts.</p>
+
+            <form method="POST" action="{{ url_for('post_comment', recipe_id=recipe.id) }}">
+
+                <!-- Star rating row (submits to post_comment, which also handles the hidden stars field) -->
+                <div class="leave-comment-rating-row">
+                    <span class="leave-comment-rate-label">DID YOU MAKE THIS? RATE THE RECIPE!</span>
+                    <div class="star-picker" id="starPicker">
+                        {% for i in range(1, 6) %}
+                        <label class="star-label" title="{{ i }} star{{ 's' if i != 1 }}">
+                            <input type="radio" name="stars" value="{{ i }}"
+                                {% if user_rating and user_rating.stars == i %}checked{% endif %}>
+                            <span class="star-icon {% if user_rating and i <= user_rating.stars %}active{% endif %}">★</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="field-block push-top">
+                    <label for="commentText">COMMENT</label>
+                    <textarea id="commentText" name="content" rows="5" placeholder="Share your thoughts, tips, or questions..."></textarea>
+                </div>
+
+                <div class="comment-form-actions push-top">
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Existing comments list -->
+        {% if comments %}
+        <div class="comments-divider"></div>
+        <div class="comments-header">
+            <h3>{{ comments|length }} Comment{{ 's' if comments|length != 1 }}</h3>
+            <div class="sort-control">
+                <label for="sortComments">Sort:</label>
+                <select id="sortComments" onchange="window.location = '?sort=' + this.value + '#comments-section'">
+                    <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest First</option>
+                    <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest First</option>
+                </select>
+            </div>
+        </div>
+        <div class="comments-list">
+            {% for comment in comments %}
+            <div class="comment-item">
+                <div class="comment-meta">
+                    <span class="comment-author">{{ comment.author_name }}</span>
+                    <span class="comment-date">{{ comment.dateCreated.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                </div>
+                <p class="comment-body">{{ comment.content }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted-small push-top">No comments yet — be the first!</p>
+        {% endif %}
+
+    </article>
 </section>
 
 <script>
+// ── Ingredient scaling ────────────────────────────────────
 const baseServings = {{ recipe.baseServings }};
 function scaleIngredients(target) {
     const adjusted = parseFloat(target);
@@ -92,5 +180,41 @@ function scaleIngredients(target) {
         el.textContent = (base * ratio).toFixed(2).replace(/\.00$/, '');
     });
 }
+
+// ── Star picker ───────────────────────────────────────────
+(function () {
+    const picker = document.getElementById('starPicker');
+    if (!picker) return;
+    const labels = picker.querySelectorAll('.star-label');
+    const icons = picker.querySelectorAll('.star-icon');
+    const radios = picker.querySelectorAll('input[type=radio]');
+    const btn = picker.closest('form').querySelector('button[type=submit]');
+
+    function highlight(upTo) {
+        icons.forEach((icon, idx) => {
+            icon.classList.toggle('active', idx < upTo);
+            icon.classList.toggle('hover', idx < upTo);
+        });
+    }
+    function resetToSelected() {
+        const checked = picker.querySelector('input:checked');
+        const val = checked ? parseInt(checked.value) : 0;
+        icons.forEach((icon, idx) => {
+            icon.classList.toggle('active', idx < val);
+            icon.classList.remove('hover');
+        });
+    }
+    labels.forEach((label, idx) => {
+        label.addEventListener('mouseenter', () => highlight(idx + 1));
+        label.addEventListener('mouseleave', resetToSelected);
+    });
+    radios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            resetToSelected();
+            btn.textContent = 'Submit Rating';
+        });
+    });
+    resetToSelected();
+})();
 </script>
 {% endblock %}
