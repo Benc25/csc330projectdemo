@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Search | The Open Kitchen{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    <span class="breadcrumb-separator">›</span>
+    <span class="breadcrumb-item">Search Results</span>
+</div>
+
+<section class="section-head compact">
+    <div>
+        <h1>🔍 Search Results</h1>
+        <p>Query: <strong>{{ query or 'Nothing entered yet' }}</strong></p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</section>
+
+{% if query and results %}
+<div style="margin-bottom: 16px;">
+    <p style="color: var(--muted);">Found <strong>{{ results|length }} recipe{{ 's' if results|length != 1 }}</strong> matching your search</p>
+</div>
+<div class="card-grid">
+    {% for item in results %}
+    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+        <article class="recipe-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill">✓ Match</span>
+                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+            </div>
+            <h3>{{ item.recipe.title }}</h3>
+            <p>{{ item.recipe.description or 'A recipe matching your search.' }}</p>
+            <div class="pill-row">
+                <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                {% for name in item.category_names[:2] %}
+                <span class="pill">{{ name }}</span>
+                {% endfor %}
+            </div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+{% elif query %}
+<div class="empty-state">
+    <h3>😕 No recipes found</h3>
+    <p>Try a title, ingredient, dietary tag, or allergen instead.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>🔎 Search the recipe collection</h3>
+    <p>Use the search bar above to look up recipes by title, ingredient, dietary tag, or allergen.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}The Open Kitchen{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="container nav-wrap">
+            <a class="brand" href="{{ url_for('dashboard') }}">
+                <span class="brand-mark">🍽</span>
+                <span>The Open Kitchen</span>
+            </a>
+
+            <form class="searchbar" action="{{ url_for('search') }}" method="get">
+                <input type="text" name="q" placeholder="Search by title, ingredient, tag, or allergen (Ctrl+K)"
+                       value="{{ request.args.get('q', '') }}" title="Press Ctrl+K to focus search">
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </form>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
+                    <span id="themeIcon">🌙</span>
+                </button>
+                {% if current_user %}
+                <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">+ Create Recipe</a>
+                <div class="nav-user-menu">
+                    <button class="btn btn-light" id="userMenuBtn" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <span style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">{{ current_user.firstName[0] }}</span>
+                        <span style="max-width: 100px; overflow: hidden; text-overflow: ellipsis;">{{ current_user.firstName }}</span>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown" style="display: none;">
+                        <a href="{{ url_for('profile') }}" class="user-dropdown-item">My Profile</a>
+                        <a href="{{ url_for('logout') }}" class="user-dropdown-item">Sign Out</a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary">Create Account</a>
+                {% endif %}
+
+                <!-- Notification Button -->
+                <button type="button"
+                        id="notificationBtn"
+                        class="btn btn-light position-relative ms-3"
+                        data-bs-toggle="offcanvas"
+                        data-bs-target="#notificationPanel"
+                        aria-controls="notificationPanel">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
+                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901"/>
+                    </svg>
+
+                    {% if has_unread %}
+                    <span id="notificationBadge"
+                          class="position-absolute top-0 start-100 translate-middle badge bg-danger rounded-circle p-2">
+                        <span class="visually-hidden">New notifications</span>
+                    </span>
+                    {% else %}
+                    <span id="notificationBadge"
+                          class="position-absolute top-0 start-100 translate-middle badge bg-danger rounded-circle p-2"
+                          style="display: none;">
+                        <span class="visually-hidden">New notifications</span>
+                    </span>
+                    {% endif %}
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container page-shell">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ==================== NOTIFICATION PANEL ==================== -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="notificationPanel" aria-labelledby="notificationPanelLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="notificationPanelLabel">Notifications</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            {% if notifications %}
+            <div class="list-group list-group-flush" id="notificationList">
+                {% for n in notifications %}
+                <div class="list-group-item list-group-item-action d-flex align-items-start gap-2 py-3 px-3 {% if not n.isRead %}notif-unread{% endif %}">
+                    
+                    <!-- Clickable content: link to recipe if available -->
+                    {% if n.recipeID %}
+                    <a href="{{ url_for('view_recipe', recipe_id=n.recipeID) }}"
+                       class="flex-grow-1 text-decoration-none text-dark"
+                       data-bs-dismiss="offcanvas">
+                    {% else %}
+                    <div class="flex-grow-1">
+                    {% endif %}
+                        <div class="fw-semibold" style="font-size: .9rem;">{{ n.title }}</div>
+                        <div class="text-muted" style="font-size: .82rem; line-height: 1.4;">{{ n.message }}</div>
+                        <div class="text-muted mt-1" style="font-size: .75rem;">{{ n.dateCreated.strftime('%b %d, %Y at %I:%M %p') }}</div>
+                    {% if n.recipeID %}
+                    </a>
+                    {% else %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Delete individual notification -->
+                    <button type="button"
+                            class="btn btn-link p-0 text-muted notif-delete-btn ms-1"
+                            data-notif-id="{{ n.id }}"
+                            data-delete-url="{{ url_for('delete_notification', notification_id=n.id) }}"
+                            title="Dismiss">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="list-group list-group-flush" id="notificationList">
+                <div class="list-group-item text-muted p-4 text-center">
+                    No notifications yet
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;" id="toastContainer"></div>
+
+    <!-- Toast trigger: set by server when a new notification was just created -->
+    {% if toast_notif is defined and toast_notif %}
+    <div id="pendingNotification"
+         data-title="{{ toast_notif.title }}"
+         data-message="{{ toast_notif.message }}"
+         data-show="true">
+    </div>
+    {% endif %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Dark mode toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const htmlElement = document.documentElement;
+
+        // Check for saved preference or system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme') || (prefersDark ? 'dark' : 'light');
+
+        if (savedTheme === 'dark') {
+            htmlElement.setAttribute('data-theme', 'dark');
+            themeIcon.textContent = '☀️';
+        }
+
+        themeToggle.addEventListener('click', function() {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+
+        // User menu toggle
+        const userMenuBtn = document.getElementById('userMenuBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        if (userMenuBtn && userDropdown) {
+            userMenuBtn.addEventListener('click', function () {
+                userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+            });
+            document.addEventListener('click', function (event) {
+                if (!event.target.closest('.nav-user-menu')) {
+                    userDropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+K or Cmd+K to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchbar = document.querySelector('.searchbar input');
+                if (searchbar) searchbar.focus();
+            }
+        });
+
+        function showNotificationToast(title, message, time = "just now") {
+            const toastHTML = `
+                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">${title}</strong>
+                        <small class="text-muted">${time}</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">${message}</div>
+                </div>`;
+
+            document.getElementById('toastContainer').insertAdjacentHTML('beforeend', toastHTML);
+
+            const toastEl = document.querySelector('.toast:last-child');
+            const toast = new bootstrap.Toast(toastEl, { delay: 7000 });
+            toast.show();
+
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        }
+
+        function updateBadge(show) {
+            const badge = document.getElementById('notificationBadge');
+            if (badge) badge.style.display = show ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Show toast if there's a new notification from the server
+            const pending = document.getElementById('pendingNotification');
+            if (pending && pending.dataset.show === "true") {
+                showNotificationToast(
+                    pending.dataset.title,
+                    pending.dataset.message
+                );
+            }
+
+            // Delete notification without closing the panel
+            document.getElementById('notificationPanel').addEventListener('click', function (e) {
+                const btn = e.target.closest('.notif-delete-btn');
+                if (!btn) return;
+
+                const url = btn.dataset.deleteUrl;
+                const row = btn.closest('.list-group-item');
+
+                fetch(url, { method: 'POST' })
+                    .then(res => {
+                        if (res.ok || res.redirected) {
+                            row.remove();
+                            // If no items left, show the empty state
+                            const list = document.getElementById('notificationList');
+                            if (list && list.querySelectorAll('.list-group-item').length === 0) {
+                                list.innerHTML = '<div class="list-group-item text-muted p-4 text-center">No notifications yet</div>';
+                            }
+                        }
+                    });
+            });
+
+            // Mark notifications as read and hide badge when panel is opened
+            const offcanvas = document.getElementById('notificationPanel');
+            if (offcanvas) {
+                offcanvas.addEventListener('shown.bs.offcanvas', function () {
+                    updateBadge(false);
+                    fetch("{{ url_for('mark_notifications_read') }}", { method: 'POST' });
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

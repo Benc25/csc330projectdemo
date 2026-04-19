@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}My Profile | The Open Kitchen{% endblock %}
+
+{% block content %}
+<section class="section-head compact">
+    <div>
+        <h1>👤 My Profile</h1>
+        <p>Welcome, <strong>{{ current_user.firstName }} {{ current_user.lastName }}</strong></p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</section>
+
+<!-- Profile Stats -->
+<div class="profile-stats">
+    <div class="stat-box">
+        <span class="stat-number">{{ created_recipes|length }}</span>
+        <span class="stat-label">Recipes Created</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">{{ forked_recipes|length }}</span>
+        <span class="stat-label">Recipes Forked</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">{{ saved_recipes|length }}</span>
+        <span class="stat-label">Recipes Saved</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">{{ current_user.firstName[0:1].upper() }}</span>
+        <span class="stat-label">Your Initial</span>
+    </div>
+</div>
+
+<div style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">👨‍🍳 My Recipes ({{ created_recipes|length }})</h2>
+
+    {% if created_recipes %}
+    <div class="card-grid">
+        {% for item in created_recipes %}
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A delicious recipe.' }}</p>
+                <div class="pill-row">
+                    <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                    {% for name in item.category_names[:2] %}
+                    <span class="pill">{{ name }}</span>
+                    {% endfor %}
+                </div>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No recipes created yet</h3>
+        <p>Start creating delicious recipes today!</p>
+        <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">Create Recipe</a>
+    </div>
+    {% endif %}
+</div>
+
+<div style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">❤️ Saved Recipes ({{ saved_recipes|length }})</h2>
+
+    {% if saved_recipes %}
+    <div class="card-grid">
+        {% for item in saved_recipes %}
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A delicious recipe.' }}</p>
+                <div class="pill-row">
+                    <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                    {% for name in item.category_names[:2] %}
+                    <span class="pill">{{ name }}</span>
+                    {% endfor %}
+                </div>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No saved recipes yet</h3>
+        <p>Start exploring recipes and save the ones you like!</p>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Explore Recipes</a>
+    </div>
+    {% endif %}
+</div>
+
+<div style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">🍴 Forked Recipes ({{ forked_recipes|length }})</h2>
+
+    {% if forked_recipes %}
+    <div class="card-grid">
+        {% for item in forked_recipes %}
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A delicious recipe.' }}</p>
+                <div class="pill-row">
+                    <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                    {% for name in item.category_names[:2] %}
+                    <span class="pill">{{ name }}</span>
+                    {% endfor %}
+                </div>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No forked recipes yet</h3>
+        <p>Find recipes you like and fork them to make your own!</p>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Explore Recipes</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
