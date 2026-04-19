@@ -51,14 +51,22 @@ def dashboard():
     if user and user.role == 'curator':
         return redirect(url_for('curator_dashboard'))
 
-    recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).all()
-    featured = [_recipe_card_data(r) for r in recipes[:6]]
-
     rated_subq = (
         db.session.query(Rating.recipeID, func.avg(Rating.stars).label('avg'), func.count(Rating.id).label('cnt'))
         .group_by(Rating.recipeID)
         .subquery()
     )
+
+    # Top rated recipe (single highlight)
+    top_recipe_obj = (
+        db.session.query(Recipe)
+        .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
+        .order_by(rated_subq.c.avg.desc(), rated_subq.c.cnt.desc())
+        .first()
+    )
+    top_recipe = _recipe_card_data(top_recipe_obj) if top_recipe_obj else None
+
+    # Popular recipes
     popular_recipes = (
         db.session.query(Recipe)
         .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
@@ -68,16 +76,34 @@ def dashboard():
     )
     popular = [_recipe_card_data(r) for r in popular_recipes]
 
+    # Random recipes
+    all_recipes = Recipe.query.all()
+    import random
+    random_sample = random.sample(all_recipes, min(6, len(all_recipes)))
+    random_recipes = [_recipe_card_data(r) for r in random_sample]
+
+    # Newest recipes
+    newest_recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
+    newest = [_recipe_card_data(r) for r in newest_recipes]
+
     stats = {
         'recipes': Recipe.query.count(),
         'categories': Category.query.count(),
         'tags': DietaryTag.query.count(),
         'allergens': Allergen.query.count(),
     }
+
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
-    return render_template('dashboard.html', featured=featured, stats=stats, popular=popular,
-                           notifications=notifications, has_unread=has_unread)
+
+    return render_template('dashboard.html',
+                           top_recipe=top_recipe,
+                           popular=popular,
+                           random_recipes=random_recipes,
+                           newest=newest,
+                           stats=stats,
+                           notifications=notifications,
+                           has_unread=has_unread)
 
 
 @app.route('/recipe/create', methods=['GET', 'POST'])
@@ -320,13 +346,31 @@ def search():
                            notifications=notifications, has_unread=has_unread)
 
 @app.route('/groups')
+@app.route('/groups')
 def my_groups():
+    user = User.query.get(DEMO_USER_ID)
     memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
     groups = [m.group for m in memberships]
+
+    recipes = Recipe.query.filter_by(authorID=DEMO_USER_ID).order_by(Recipe.dateCreated.desc()).all()
+    recipe_data = [_recipe_card_data(r) for r in recipes]
+
+    message_count = GroupMessage.query.filter_by(senderID=DEMO_USER_ID).count()
+
+    avg = db.session.query(func.avg(Rating.stars)).filter_by(userID=DEMO_USER_ID).scalar()
+    avg_rating = round(avg, 1) if avg else None
+
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
-    return render_template('groups/index.html', groups=groups,
-                           notifications=notifications, has_unread=has_unread)
+
+    return render_template('groups/index.html',
+                           groups=groups,
+                           recipe_data=recipe_data,
+                           message_count=message_count,
+                           avg_rating=avg_rating,
+                           user=user,
+                           notifications=notifications,
+                           has_unread=has_unread)
 
 
 @app.route('/groups/create', methods=['GET', 'POST'])
