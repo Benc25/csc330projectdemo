@@ -1,8 +1,8 @@
-from flask import render_template, request, redirect, url_for, session
+from flask import render_template, request, redirect, url_for, session, flash
 from sqlalchemy import or_, func
-from app import app, db
+from app import app, db, mail
 from datetime import datetime
-from app.forms import CreateRecipeForm
+from app.forms import CreateRecipeForm, LoginForm, RegisterForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
@@ -11,8 +11,41 @@ from app.models import (
 import csv
 from io import StringIO
 from flask import Response
+from flask_mail import Message
+from functools import wraps
 
-DEMO_USER_ID = 1
+DEMO_USER_ID = 0
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def get_current_user():
+    if 'user_id' in session:
+        return User.query.get(session['user_id'])
+    return None
+
+def send_welcome_email(user):
+    try:
+        msg = Message(
+            subject='Welcome to The Open Kitchen!',
+            recipients=[user.email],
+            html=f"""
+            <h2>Welcome to The Open Kitchen, {user.firstName}!</h2>
+            <p>Your account has been successfully created.</p>
+            <p>Start creating and forking recipes today to build your personal kitchen knowledge.</p>
+            <p>Happy cooking!</p>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 
 def _get_avg_rating(recipe_id):
@@ -44,6 +77,56 @@ def _comment_author(comment):
 def _get_notifications():
     return Notification.query.filter_by(userID=DEMO_USER_ID).order_by(Notification.dateCreated.desc()).all()
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+
+        if user and user.check_password(form.password.data):
+            session['user_id'] = user.id
+            flash(f'Welcome back, {user.firstName}!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid email or password.', 'error')
+
+    return render_template('login.html', form=form)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+
+    form = RegisterForm()
+    if form.validate_on_submit():
+        user = User(
+            firstName=form.firstName.data.strip(),
+            lastName=form.lastName.data.strip(),
+            email=form.email.data.strip()
+        )
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+
+        send_welcome_email(user)
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html', form=form)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('dashboard'))
+
+
+# ==================== RECIPE ROUTES ====================
 
 @app.route('/')
 def dashboard():
@@ -346,7 +429,6 @@ def search():
                            notifications=notifications, has_unread=has_unread)
 
 @app.route('/groups')
-@app.route('/groups')
 def my_groups():
     user = User.query.get(DEMO_USER_ID)
     memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
@@ -533,9 +615,6 @@ def curator_user_profile(user_id):
                            notifications=notifications,
                            has_unread=has_unread)
 
-import csv
-from io import StringIO
-from flask import Response
 
 @app.route('/curator/export/recipes')
 def export_recipes():
@@ -584,7 +663,6 @@ def export_groups():
         writer.writerow([g.id, g.name, g.description, f"{leader.firstName} {leader.lastName}" if leader else 'N/A', len(g.members), g.dateCreated])
     return Response(si.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=groups.csv'})
-
 
 @app.route('/curator/export/messages')
 def export_messages():
