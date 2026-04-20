@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -12,8 +13,12 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, default='contributor')
     isActive = db.Column(db.Boolean, default=True)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
-
     recipes = db.relationship('Recipe', backref='author', lazy=True)
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
 
 class MeasurementUnit(db.Model):
     __tablename__ = 'measurement_units'
