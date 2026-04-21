@@ -41,20 +41,31 @@
 </form>
 <div class="card-grid">
     {% for u in users %}
-    <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">{{ u.role }}</span>
-                <span class="muted-small">{{ 'Active' if u.isActive else 'Inactive' }}</span>
-            </div>
-            <h3>{{ u.firstName }} {{ u.lastName }}</h3>
-            <p>{{ u.email }}</p>
-            <div class="recipe-card-footer">
-                <span class="muted-small">Joined {{ u.dateCreated.strftime('%b %d, %Y') }}</span>
-                <span>View profile →</span>
-            </div>
-        </article>
-    </a>
+    <div style="position: relative;">
+        <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="mini-pill">{{ u.role }}</span>
+                    <span class="muted-small">{{ 'Active' if u.isActive else 'Inactive' }}</span>
+                </div>
+                <h3>{{ u.firstName }} {{ u.lastName }}</h3>
+                <p>{{ u.email }}</p>
+                <div class="recipe-card-footer">
+                    <span class="muted-small">Joined {{ u.dateCreated.strftime('%b %d, %Y') }}</span>
+                    <span>View profile →</span>
+                </div>
+            </article>
+        </a>
+        <form method="POST" action="{{ url_for('curator_delete_user', user_id=u.id) }}"
+              style="position: absolute; top: 10px; right: 10px;"
+              onsubmit="return confirm('Permanently delete {{ u.firstName }} {{ u.lastName }}? This cannot be undone.')">
+            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete user">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+    </div>
     {% endfor %}
 </div>
 
@@ -67,25 +78,36 @@
 </section>
 <div class="card-grid">
     {% for item in popular %}
-    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card popular-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill popular-badge">★ Top Rated</span>
-                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-            </div>
-            <h3>{{ item.recipe.title }}</h3>
-            <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
-            <div class="recipe-card-footer">
-                <span class="card-stars">
-                    {% for i in range(1, 6) %}
-                    <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                    {% endfor %}
-                    <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                </span>
-                <span>Open →</span>
-            </div>
-        </article>
-    </a>
+    <div style="position: relative;">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card popular-card">
+                <div class="recipe-card-top">
+                    <span class="mini-pill popular-badge">★ Top Rated</span>
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
+                <div class="recipe-card-footer">
+                    <span class="card-stars">
+                        {% for i in range(1, 6) %}
+                        <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
+                        {% endfor %}
+                        <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
+                    </span>
+                    <span>Open →</span>
+                </div>
+            </article>
+        </a>
+        <form method="POST" action="{{ url_for('curator_delete_recipe', recipe_id=item.recipe.id) }}"
+              style="position: absolute; top: 10px; right: 10px;"
+              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
+            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+    </div>
     {% endfor %}
 </div>
 
@@ -98,20 +120,31 @@
 </section>
 <div class="card-grid">
     {% for item in newest %}
-    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-            </div>
-            <h3>{{ item.recipe.title }}</h3>
-            <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-            <div class="recipe-card-footer">
-                <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
-                <span>Open →</span>
-            </div>
-        </article>
-    </a>
+    <div style="position: relative;">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
+                <div class="recipe-card-footer">
+                    <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
+                    <span>Open →</span>
+                </div>
+            </article>
+        </a>
+        <form method="POST" action="{{ url_for('curator_delete_recipe', recipe_id=item.recipe.id) }}"
+              style="position: absolute; top: 10px; right: 10px;"
+              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
+            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+    </div>
     {% endfor %}
 </div>
 {% endblock %}
