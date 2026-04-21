@@ -12,6 +12,9 @@
                 <span class="mini-pill">{{ rc.category.name }}</span>
                 {% endfor %}
                 {% if not categories %}<span class="mini-pill">Recipe</span>{% endif %}
+                {% if recipe.forkedFrom %}
+                <a href="{{ url_for('view_recipe', recipe_id=recipe.forkedFrom) }}" class="mini-pill" style="background: #e4f0ff; color: #2a5299; text-decoration: none;">Forked</a>
+                {% endif %}
             </div>
             <h1>
                 {{ recipe.title }}
@@ -238,7 +241,6 @@
 </div>
  
 <script>
-// ── Back navigation ───────────────────────────────────────
 function goBack() {
     if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
         history.back();
@@ -247,19 +249,16 @@ function goBack() {
     }
 }
 
-// ── Ingredient scaling ────────────────────────────────────
-const baseServings = {{ recipe.baseServings }};
 function scaleIngredients(target) {
     const adjusted = parseFloat(target);
     if (!adjusted || adjusted <= 0) return;
-    const ratio = adjusted / baseServings;
+    const ratio = adjusted / {{ recipe.baseServings }};
     document.querySelectorAll('.scaled-qty').forEach(el => {
         const base = parseFloat(el.dataset.base);
         el.textContent = (base * ratio).toFixed(2).replace(/\.00$/, '');
     });
 }
  
-// ── Star picker ───────────────────────────────────────────
 (function () {
     const picker = document.getElementById('starPicker');
     if (!picker) return;
