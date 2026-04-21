@@ -130,44 +130,57 @@
 {% if saved_recipes %}
 <div class="card-grid">
     {% for item in saved_recipes %}
-    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">
-                    {{ item.category_names[0] if item.category_names else 'Recipe' }}
-                </span>
-                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-            </div>
+    <div class="recipe-card-wrap">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card">
+                <div class="recipe-card-top">
+                    <span class="mini-pill">
+                        {{ item.category_names[0] if item.category_names else 'Recipe' }}
+                    </span>
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
 
-            <h3>{{ item.recipe.title }}</h3>
-            <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
+                <h3>{{ item.recipe.title }}</h3>
+                <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
 
-            <div class="pill-row">
-                <span class="pill">Serves {{ item.recipe.baseServings }}</span>
-                {% if item.recipe.prepTime %}
-                    <span class="pill">Prep {{ item.recipe.prepTime }} min</span>
-                {% endif %}
-                {% if item.recipe.cookTime %}
-                    <span class="pill">Cook {{ item.recipe.cookTime }} min</span>
-                {% endif %}
-            </div>
+                <div class="pill-row">
+                    <span class="pill">Serves {{ item.recipe.baseServings }}</span>
+                    {% if item.recipe.prepTime %}
+                        <span class="pill">Prep {{ item.recipe.prepTime }} min</span>
+                    {% endif %}
+                    {% if item.recipe.cookTime %}
+                        <span class="pill">Cook {{ item.recipe.cookTime }} min</span>
+                    {% endif %}
+                </div>
 
-            <div class="recipe-card-footer">
-                {% if item.avg_rating %}
-                <span class="card-stars">
-                    {% for i in range(1, 6) %}
-                        <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                    {% endfor %}
-                    <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                </span>
-                {% else %}
-                <span class="muted-small no-rating">No ratings yet</span>
-                {% endif %}
+                <div class="recipe-card-footer">
+                    {% if item.avg_rating %}
+                    <span class="card-stars">
+                        {% for i in range(1, 6) %}
+                            <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
+                        {% endfor %}
+                        <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
+                    </span>
+                    {% else %}
+                    <span class="muted-small no-rating">No ratings yet</span>
+                    {% endif %}
 
-                <span>Open recipe →</span>
-            </div>
-        </article>
-    </a>
+                    <span>Open recipe →</span>
+                </div>
+            </article>
+        </a>
+        {% if user and user.id == item.recipe.authorID %}
+        <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
+              class="delete-form"
+              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
+            <button type="submit" class="delete-btn" title="Delete recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+        {% endif %}
+    </div>
     {% endfor %}
 </div>
 {% else %}
