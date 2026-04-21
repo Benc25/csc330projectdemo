@@ -81,6 +81,7 @@ def _get_notifications():
         return []
     return Notification.query.filter_by(userID=uid).order_by(Notification.dateCreated.desc()).all()
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if get_current_user():
@@ -136,7 +137,6 @@ def logout():
 def dashboard():
     user = get_current_user()
 
-    # Curators go to their own dashboard
     if user and user.role == 'curator':
         return redirect(url_for('curator_dashboard'))
 
@@ -146,7 +146,6 @@ def dashboard():
         .subquery()
     )
 
-    # Top rated recipe (single highlight)
     top_recipe_obj = (
         db.session.query(Recipe)
         .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
@@ -155,7 +154,6 @@ def dashboard():
     )
     top_recipe = _recipe_card_data(top_recipe_obj) if top_recipe_obj else None
 
-    # Popular recipes
     popular_recipes = (
         db.session.query(Recipe)
         .join(rated_subq, Recipe.id == rated_subq.c.recipeID)
@@ -165,13 +163,11 @@ def dashboard():
     )
     popular = [_recipe_card_data(r) for r in popular_recipes]
 
-    # Random recipes
     all_recipes = Recipe.query.all()
     import random
     random_sample = random.sample(all_recipes, min(6, len(all_recipes)))
     random_recipes = [_recipe_card_data(r) for r in random_sample]
 
-    # Newest recipes
     newest_recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
     newest = [_recipe_card_data(r) for r in newest_recipes]
 
@@ -333,7 +329,6 @@ def post_comment(recipe_id):
     uid = current_user_id()
     recipe = Recipe.query.get_or_404(recipe_id)
 
-    # Save star rating if provided
     try:
         stars = int(request.form.get('stars', 0))
     except (ValueError, TypeError):
@@ -345,7 +340,6 @@ def post_comment(recipe_id):
         else:
             db.session.add(Rating(recipeID=recipe_id, userID=uid, stars=stars))
 
-    # Save comment and create notification
     content = request.form.get('content', '').strip()
     if content:
         new_comment = Comment(recipeID=recipe_id, userID=uid, content=content)
@@ -444,6 +438,7 @@ def search():
     has_unread = any(not n.isRead for n in notifications)
     return render_template('search.html', query=query, results=results,
                            notifications=notifications, has_unread=has_unread)
+
 
 @app.route('/groups')
 @login_required
@@ -553,7 +548,7 @@ def share_recipe(group_id, recipe_id):
 @app.route('/groups/<int:group_id>/add_member', methods=['POST'])
 @login_required
 def add_member(group_id):
-    group = Group.query.get_or_404(group_id)
+    Group.query.get_or_404(group_id)
     email = request.form.get('email')
     user = User.query.filter_by(email=email).first()
     if user:
@@ -564,6 +559,7 @@ def add_member(group_id):
             db.session.commit()
     return redirect(url_for('view_group', group_id=group_id))
 
+
 @app.route('/curator')
 @login_required
 def curator_dashboard():
@@ -571,10 +567,8 @@ def curator_dashboard():
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
-    # Newest recipes
     newest = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
 
-    # Most popular recipes
     rated_subq = (
         db.session.query(Rating.recipeID, func.avg(Rating.stars).label('avg'), func.count(Rating.id).label('cnt'))
         .group_by(Rating.recipeID)
@@ -588,7 +582,6 @@ def curator_dashboard():
         .all()
     )
 
-    # User search
     search_query = request.args.get('q', '').strip()
     if search_query:
         users = User.query.filter(
@@ -619,6 +612,7 @@ def curator_dashboard():
                            stats=stats,
                            notifications=notifications,
                            has_unread=has_unread)
+
 
 @app.route('/curator/user/<int:user_id>')
 @login_required
@@ -694,6 +688,7 @@ def export_groups():
         writer.writerow([g.id, g.name, g.description, f"{leader.firstName} {leader.lastName}" if leader else 'N/A', len(g.members), g.dateCreated])
     return Response(si.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=groups.csv'})
+
 
 @app.route('/curator/export/messages')
 @login_required
