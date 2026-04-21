@@ -82,6 +82,13 @@ def _get_notifications():
     return Notification.query.filter_by(userID=uid).order_by(Notification.dateCreated.desc()).all()
 
 
+@app.context_processor
+def inject_notifications():
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return dict(notifications=notifications, has_unread=has_unread)
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if get_current_user():
@@ -188,9 +195,6 @@ def dashboard():
         'allergens': Allergen.query.count(),
     }
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-
     return render_template('dashboard.html',
                            user=user,
                            top_recipe=top_recipe,
@@ -198,9 +202,7 @@ def dashboard():
                            random_recipes=random_recipes,
                            newest=newest,
                            saved_recipes=saved_recipes,
-                           stats=stats,
-                           notifications=notifications,
-                           has_unread=has_unread)
+                           stats=stats)
 
 
 @app.route('/recipe/create', methods=['GET', 'POST'])
@@ -282,10 +284,7 @@ def create_recipe():
         for _, messages in form.errors.items():
             errors.extend(messages)
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
     return render_template('recipe_form.html', form=form, units=units, errors=errors,
-                           notifications=notifications, has_unread=has_unread,
                            is_edit=False, existing_ingredients=[], recipe=None)
 
 
@@ -300,27 +299,24 @@ def view_recipe(recipe_id):
     allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
     avg_rating, rating_count = _get_avg_rating(recipe_id)
     user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first() if uid else None
- 
+
     is_saved = False
     if uid:
         is_saved = SavedRecipe.query.filter_by(userID=uid, recipeID=recipe_id).first() is not None
- 
+
     sort = request.args.get('sort', 'newest')
     order = Comment.dateCreated.asc() if sort == 'oldest' else Comment.dateCreated.desc()
     comments = Comment.query.filter_by(recipeID=recipe_id).order_by(order).all()
     for c in comments:
         c.author_name = _comment_author(c)
- 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
- 
+
     toast_notif = None
     toast_id = session.pop('toast_notification_id', None)
     if toast_id:
         toast_notif = Notification.query.get(toast_id)
- 
+
     memberships = GroupMember.query.filter_by(userID=uid).all() if uid else []
- 
+
     return render_template(
         'view_recipe.html',
         recipe=recipe,
@@ -335,11 +331,10 @@ def view_recipe(recipe_id):
         is_saved=is_saved,
         comments=comments,
         sort=sort,
-        notifications=notifications,
-        has_unread=has_unread,
         toast_notif=toast_notif,
         memberships=memberships,
     )
+
 
 @app.route('/recipe/<int:recipe_id>/comments', methods=['POST'])
 @login_required
@@ -414,6 +409,7 @@ def delete_recipe(recipe_id):
     db.session.commit()
     return redirect(url_for('dashboard'))
 
+
 @app.route('/recipe/<int:recipe_id>/fork', methods=['POST'])
 @login_required
 def fork_recipe(recipe_id):
@@ -453,6 +449,7 @@ def fork_recipe(recipe_id):
     flash(f'Recipe "{original_recipe.title}" forked to your account!', 'success')
     return redirect(url_for('view_recipe', recipe_id=forked_recipe.id))
 
+
 @app.route('/recipe/<int:recipe_id>/save', methods=['POST'])
 @login_required
 def save_recipe(recipe_id):
@@ -478,6 +475,7 @@ def is_recipe_saved(recipe_id):
     saved = SavedRecipe.query.filter_by(userID=current_user.id, recipeID=recipe_id).first()
     return {'is_saved': bool(saved)}
 
+
 @app.route('/recipe/<int:recipe_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_recipe(recipe_id):
@@ -495,7 +493,6 @@ def edit_recipe(recipe_id):
     units = MeasurementUnit.query.filter_by(isActive=True).order_by(MeasurementUnit.name).all()
 
     errors = []
-    # Always pre-load from DB; the GET branch uses this directly, POST failure overwrites it
     existing_ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
 
     if form.validate_on_submit():
@@ -508,7 +505,6 @@ def edit_recipe(recipe_id):
         if not has_ingredient:
             errors.append('At least one ingredient is required.')
 
-        # Only flag duplicate if the title changed AND another recipe already uses it
         new_title = form.title.data.strip()
         if new_title != recipe.title:
             duplicate = Recipe.query.filter_by(authorID=current_user.id, title=new_title).first()
@@ -564,8 +560,6 @@ def edit_recipe(recipe_id):
             flash('Recipe updated successfully!', 'success')
             return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
-        # Validation failed — re-render with the ingredients the user just submitted
-        # so they don't lose their edits
         existing_ingredients = []
         for name, qty, unit_id in zip(ing_names, ing_qtys, ing_units):
             name = (name or '').strip()
@@ -609,10 +603,7 @@ def edit_recipe(recipe_id):
         for _, messages in form.errors.items():
             errors.extend(messages)
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
     return render_template('recipe_form.html', form=form, units=units, errors=errors, recipe=recipe,
-                           notifications=notifications, has_unread=has_unread,
                            current_user=current_user, is_edit=True,
                            existing_ingredients=existing_ingredients)
 
@@ -654,10 +645,7 @@ def search():
                 seen.add(recipe.id)
                 results.append(_recipe_card_data(recipe))
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-    return render_template('search.html', query=query, results=results,
-                           notifications=notifications, has_unread=has_unread)
+    return render_template('search.html', query=query, results=results)
 
 
 @app.route('/groups')
@@ -728,10 +716,7 @@ def create_group():
         db.session.commit()
         return redirect(url_for('view_group', group_id=new_group.id))
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-    return render_template('groups/create.html',
-                           notifications=notifications, has_unread=has_unread)
+    return render_template('groups/create.html')
 
 
 @app.route('/groups/<int:group_id>')
@@ -740,11 +725,8 @@ def view_group(group_id):
     messages = GroupMessage.query.filter_by(groupID=group_id).order_by(GroupMessage.dateSent).all()
     shared_recipes = GroupRecipe.query.filter_by(groupID=group_id).all()
     members = GroupMember.query.filter_by(groupID=group_id).all()
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
     return render_template('groups/view.html', group=group, messages=messages,
-                           shared_recipes=shared_recipes, members=members,
-                           notifications=notifications, has_unread=has_unread)
+                           shared_recipes=shared_recipes, members=members)
 
 
 @app.route('/groups/<int:group_id>/message', methods=['POST'])
@@ -834,17 +816,12 @@ def curator_dashboard():
         'messages': GroupMessage.query.count(),
     }
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-
     return render_template('curator/dashboard.html',
                            newest=[_recipe_card_data(r) for r in newest],
                            popular=[_recipe_card_data(r) for r in popular_recipes],
                            users=users,
                            search_query=search_query,
-                           stats=stats,
-                           notifications=notifications,
-                           has_unread=has_unread)
+                           stats=stats)
 
 
 @app.route('/curator/user/<int:user_id>')
@@ -859,16 +836,11 @@ def curator_user_profile(user_id):
     memberships = GroupMember.query.filter_by(userID=user_id).all()
     messages = GroupMessage.query.filter_by(senderID=user_id).order_by(GroupMessage.dateSent.desc()).all()
 
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-
     return render_template('curator/user_profile.html',
                            profile=profile,
                            recipes=[_recipe_card_data(r) for r in recipes],
                            memberships=memberships,
-                           messages=messages,
-                           notifications=notifications,
-                           has_unread=has_unread)
+                           messages=messages)
 
 
 @app.route('/curator/export/recipes')
@@ -939,6 +911,7 @@ def export_messages():
     return Response(si.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=messages.csv'})
 
+
 @app.route('/curator/user/<int:user_id>/delete', methods=['POST'])
 @login_required
 def curator_delete_user(user_id):
@@ -948,7 +921,6 @@ def curator_delete_user(user_id):
 
     target = User.query.get_or_404(user_id)
 
-    # Delete all user-related data
     for recipe in Recipe.query.filter_by(authorID=user_id).all():
         Rating.query.filter_by(recipeID=recipe.id).delete()
         Comment.query.filter_by(recipeID=recipe.id).delete()
