@@ -50,6 +50,21 @@ class Recipe(db.Model):
     dietary_tags = db.relationship('RecipeDietaryTag', backref='recipe', lazy=True, cascade='all, delete-orphan')
     allergens = db.relationship('RecipeAllergen', backref='recipe', lazy=True, cascade='all, delete-orphan')
 
+    def fork(self, user_id):
+        """Return a forked copy of this recipe."""
+        new_recipe = Recipe(
+            title=f"{self.title} (Forked)",
+            description=self.description,
+            instructions=self.instructions,
+            baseServings=self.baseServings,
+            prepTime=self.prepTime,
+            cookTime=self.cookTime,
+            authorID=user_id,
+            forkedFrom=self.id
+        )
+        return new_recipe
+
+
 class Ingredient(db.Model):
     __tablename__ = 'ingredients'
 
@@ -187,3 +202,13 @@ class GroupRecipe(db.Model):
 
     recipe = db.relationship('Recipe', foreign_keys=[recipeID])
     sharedBy = db.relationship('User', foreign_keys=[sharedByID])
+
+class SavedRecipe(db.Model):
+    __tablename__ = 'saved_recipes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    userID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    recipeID = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    recipe = db.relationship('Recipe', backref='saved_by')
