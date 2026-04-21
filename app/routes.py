@@ -280,6 +280,7 @@ def create_recipe():
 @app.route('/recipe/<int:recipe_id>')
 def view_recipe(recipe_id):
     uid = current_user_id()
+    user = get_current_user()
     recipe = Recipe.query.get_or_404(recipe_id)
     ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
     categories = RecipeCategory.query.filter_by(recipeID=recipe_id).all()
@@ -307,6 +308,7 @@ def view_recipe(recipe_id):
     return render_template(
         'view_recipe.html',
         recipe=recipe,
+        current_user=user,
         ingredients=ingredients,
         categories=categories,
         dietary_tags=dietary_tags,
@@ -396,6 +398,186 @@ def delete_recipe(recipe_id):
     db.session.commit()
     return redirect(url_for('dashboard'))
 
+@app.route('/recipe/<int:recipe_id>/fork', methods=['POST'])
+@login_required
+def fork_recipe(recipe_id):
+    original_recipe = Recipe.query.get_or_404(recipe_id)
+    current_user = get_current_user()
+
+    forked_recipe = original_recipe.fork(current_user.id)
+    db.session.add(forked_recipe)
+    db.session.flush()
+
+    # Copy ingredients
+    ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
+    for ing in ingredients:
+        new_ing = Ingredient(
+            recipeID=forked_recipe.id,
+            unitID=ing.unitID,
+            name=ing.name,
+            quantity=ing.quantity
+        )
+        db.session.add(new_ing)
+
+    # Copy categories
+    categories = RecipeCategory.query.filter_by(recipeID=recipe_id).all()
+    for cat in categories:
+        new_cat = RecipeCategory(recipeID=forked_recipe.id, categoryID=cat.categoryID)
+        db.session.add(new_cat)
+
+    # Copy dietary tags
+    dietary_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
+    for tag in dietary_tags:
+        new_tag = RecipeDietaryTag(recipeID=forked_recipe.id, dietaryTagID=tag.dietaryTagID)
+        db.session.add(new_tag)
+
+    # Copy allergens
+    allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
+    for allergen in allergens:
+        new_allergen = RecipeAllergen(recipeID=forked_recipe.id, allergenID=allergen.allergenID)
+        db.session.add(new_allergen)
+
+    db.session.commit()
+    flash(f'Recipe "{original_recipe.title}" forked to your account!', 'success')
+    return redirect(url_for('view_recipe', recipe_id=forked_recipe.id))
+
+@app.route('/recipe/<int:recipe_id>/save', methods=['POST'])
+@login_required
+def save_recipe(recipe_id):
+    current_user = get_current_user()
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    existing = SavedRecipe.query.filter_by(userID=current_user.id, recipeID=recipe_id).first()
+    if existing:
+        db.session.delete(existing)
+        flash('Recipe removed from saved.', 'info')
+    else:
+        db.session.add(SavedRecipe(userID=current_user.id, recipeID=recipe_id))
+        flash('Recipe saved!', 'success')
+
+    db.session.commit()
+    return redirect(request.referrer or url_for('view_recipe', recipe_id=recipe_id))
+
+
+@app.route('/recipe/<int:recipe_id>/is-saved')
+@login_required
+def is_recipe_saved(recipe_id):
+    current_user = get_current_user()
+    saved = SavedRecipe.query.filter_by(userID=current_user.id, recipeID=recipe_id).first()
+    return {'is_saved': bool(saved)}
+
+@app.route('/recipe/<int:recipe_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_recipe(recipe_id):
+    current_user = get_current_user()
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    # Only allow the author to edit
+    if recipe.authorID != current_user.id:
+        flash('You do not have permission to edit this recipe.', 'error')
+        return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+    form = CreateRecipeForm()
+    form.category_id.choices = [(0, '-- Select Category --')] + [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
+    form.dietary_tags.choices = [(t.id, t.name) for t in DietaryTag.query.order_by(DietaryTag.name).all()]
+    form.allergens.choices = [(a.id, a.name) for a in Allergen.query.order_by(Allergen.name).all()]
+    units = MeasurementUnit.query.filter_by(isActive=True).order_by(MeasurementUnit.name).all()
+
+    errors = []
+
+    if form.validate_on_submit():
+        ing_names = request.form.getlist('ing_name')
+        ing_qtys = request.form.getlist('ing_quantity')
+        ing_units = request.form.getlist('ing_unit')
+
+        has_ingredient = any((n or '').strip() for n in ing_names)
+
+        if not has_ingredient:
+            errors.append('At least one ingredient is required.')
+
+        parsed_ingredients = []
+        for idx, (name, qty, unit_id) in enumerate(zip(ing_names, ing_qtys, ing_units), start=1):
+            name = (name or '').strip()
+            qty = (qty or '').strip()
+            unit_id = (unit_id or '').strip()
+            if not name and not qty and not unit_id:
+                continue
+            if not name:
+                errors.append(f'Ingredient row {idx} is missing a name.')
+                continue
+            try:
+                quantity = float(qty) if qty else 0.0
+            except ValueError:
+                errors.append(f'Ingredient row {idx} has an invalid quantity.')
+                continue
+            try:
+                parsed_unit_id = int(unit_id) if unit_id else 1
+            except ValueError:
+                parsed_unit_id = 1
+            parsed_ingredients.append((name, quantity, parsed_unit_id))
+
+        if not errors:
+            # Update recipe
+            recipe.title = form.title.data.strip()
+            recipe.description = (form.description.data or '').strip() or None
+            recipe.instructions = form.instructions.data.strip()
+            recipe.baseServings = form.baseServings.data
+            recipe.prepTime = form.prepTime.data or None
+            recipe.cookTime = form.cookTime.data or None
+
+            # Delete and recreate ingredients
+            Ingredient.query.filter_by(recipeID=recipe_id).delete()
+            for name, quantity, unit_id in parsed_ingredients:
+                db.session.add(Ingredient(recipeID=recipe_id, unitID=unit_id, name=name, quantity=quantity))
+
+            # Update categories
+            RecipeCategory.query.filter_by(recipeID=recipe_id).delete()
+            if form.category_id.data and form.category_id.data != 0:
+                db.session.add(RecipeCategory(recipeID=recipe_id, categoryID=form.category_id.data))
+
+            # Update dietary tags
+            RecipeDietaryTag.query.filter_by(recipeID=recipe_id).delete()
+            for tag_id in form.dietary_tags.data:
+                db.session.add(RecipeDietaryTag(recipeID=recipe_id, dietaryTagID=tag_id))
+
+            # Update allergens
+            RecipeAllergen.query.filter_by(recipeID=recipe_id).delete()
+            for allergen_id in form.allergens.data:
+                db.session.add(RecipeAllergen(recipeID=recipe_id, allergenID=allergen_id))
+
+            db.session.commit()
+            flash('Recipe updated successfully!', 'success')
+            return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+    elif request.method == 'GET':
+        # Populate form with existing data
+        form.title.data = recipe.title
+        form.description.data = recipe.description
+        form.instructions.data = recipe.instructions
+        form.baseServings.data = recipe.baseServings
+        form.prepTime.data = recipe.prepTime
+        form.cookTime.data = recipe.cookTime
+
+        # Set category
+        category_link = RecipeCategory.query.filter_by(recipeID=recipe_id).first()
+        form.category_id.data = category_link.categoryID if category_link else 0
+
+        # Set dietary tags
+        diet_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
+        form.dietary_tags.data = [dt.dietaryTagID for dt in diet_tags]
+
+        # Set allergens
+        allergen_links = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
+        form.allergens.data = [a.allergenID for a in allergen_links]
+
+    if form.errors:
+        for _, messages in form.errors.items():
+            errors.extend(messages)
+
+    notifications = _get_notifications()
+    has_unread = any(not n.isRead for n in notifications)
+    return render_template('recipe_form.html', form=form, units=units, errors=errors, recipe=recipe,
+                           notifications=notifications, has_unread=has_unread, current_user=current_user, is_edit=True)
 
 @app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
 @login_required
