@@ -1,3 +1,4 @@
+
 from flask_mail import Mail
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy

@@ -14,6 +14,7 @@
 
     <header class="site-header">
         <div class="container nav-wrap">
+
             <a class="brand" href="{{ url_for('dashboard') }}">
                 <span class="brand-mark">🍽</span>
                 <span>The Open Kitchen</span>
@@ -26,10 +27,16 @@
             </form>
 
             <nav class="nav-links">
-                <a href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">+ Create Recipe</a>
 
-                <!-- Notification Button -->
+                <!-- Create Recipe OR Login -->
+                {% if session.get('user_id') %}
+                    <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">+ Create Recipe</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Log In</a>
+                {% endif %}
+
+                <!-- Notification Button (only if logged in) -->
+                {% if session.get('user_id') %}
                 <button type="button" 
                         id="notificationBtn"
                         class="btn btn-light position-relative ms-3"
@@ -54,16 +61,47 @@
                     </span>
                     {% endif %}
                 </button>
+                {% endif %}
 
-                <!-- Profile Button (ADDED) -->
-                <a href="{% if session.get('user_id') == 1 %}{{ url_for('dashboard') }}{% else %}{{ url_for('my_groups') }}{% endif %}"
-                   class="btn btn-light ms-2 d-flex align-items-center justify-content-center"
-                   style="width: 40px; height: 40px; border-radius: 50%;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
-                        <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z"/>
-                        <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-                    </svg>
-                </a>
+                <!-- Profile Dropdown (ONLY IF LOGGED IN) -->
+                {% if session.get('user_id') %}
+                <div class="dropdown ms-2">
+
+                    <button class="btn btn-light dropdown-toggle d-flex align-items-center justify-content-center"
+                            type="button"
+                            id="profileDropdown"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            style="width: 40px; height: 40px; border-radius: 50%;">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                             fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
+                            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z"/>
+                            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+                        </svg>
+
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('my_groups') }}">
+                                Dashboard
+                            </a>
+                        </li>
+
+                        <li><hr class="dropdown-divider"></li>
+
+                        <li>
+                            <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                Logout
+                            </a>
+                        </li>
+
+                    </ul>
+
+                </div>
+                {% endif %}
 
             </nav>
         </div>
@@ -74,17 +112,20 @@
     </main>
 
     <!-- ==================== NOTIFICATION PANEL ==================== -->
+    {% if session.get('user_id') %}
     <div class="offcanvas offcanvas-end" tabindex="-1" id="notificationPanel" aria-labelledby="notificationPanelLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="notificationPanelLabel">Notifications</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
+
         <div class="offcanvas-body p-0">
+
             {% if notifications %}
             <div class="list-group list-group-flush" id="notificationList">
                 {% for n in notifications %}
                 <div class="list-group-item list-group-item-action d-flex align-items-start gap-2 py-3 px-3 {% if not n.isRead %}notif-unread{% endif %}">
-                    
+
                     {% if n.recipeID %}
                     <a href="{{ url_for('view_recipe', recipe_id=n.recipeID) }}"
                        class="flex-grow-1 text-decoration-none text-dark"
@@ -92,9 +133,13 @@
                     {% else %}
                     <div class="flex-grow-1">
                     {% endif %}
+
                         <div class="fw-semibold" style="font-size: .9rem;">{{ n.title }}</div>
                         <div class="text-muted" style="font-size: .82rem; line-height: 1.4;">{{ n.message }}</div>
-                        <div class="text-muted mt-1" style="font-size: .75rem;">{{ n.dateCreated.strftime('%b %d, %Y at %I:%M %p') }}</div>
+                        <div class="text-muted mt-1" style="font-size: .75rem;">
+                            {{ n.dateCreated.strftime('%b %d, %Y at %I:%M %p') }}
+                        </div>
+
                     {% if n.recipeID %}
                     </a>
                     {% else %}
@@ -114,6 +159,7 @@
                 </div>
                 {% endfor %}
             </div>
+
             {% else %}
             <div class="list-group list-group-flush" id="notificationList">
                 <div class="list-group-item text-muted p-4 text-center">
@@ -121,9 +167,12 @@
                 </div>
             </div>
             {% endif %}
+
         </div>
     </div>
+    {% endif %}
 
+    <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;" id="toastContainer"></div>
 
     {% if toast_notif is defined and toast_notif %}
@@ -135,70 +184,6 @@
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        function showNotificationToast(title, message, time = "just now") {
-            const toastHTML = `
-                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="toast-header">
-                        <strong class="me-auto">${title}</strong>
-                        <small class="text-muted">${time}</small>
-                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body">${message}</div>
-                </div>`;
-
-            document.getElementById('toastContainer').insertAdjacentHTML('beforeend', toastHTML);
-            
-            const toastEl = document.querySelector('.toast:last-child');
-            const toast = new bootstrap.Toast(toastEl, { delay: 7000 });
-            toast.show();
-
-            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-        }
-
-        function updateBadge(show) {
-            const badge = document.getElementById('notificationBadge');
-            if (badge) badge.style.display = show ? 'block' : 'none';
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const pending = document.getElementById('pendingNotification');
-            if (pending && pending.dataset.show === "true") {
-                showNotificationToast(
-                    pending.dataset.title,
-                    pending.dataset.message
-                );
-            }
-
-            document.getElementById('notificationPanel').addEventListener('click', function (e) {
-                const btn = e.target.closest('.notif-delete-btn');
-                if (!btn) return;
-
-                const url = btn.dataset.deleteUrl;
-                const row = btn.closest('.list-group-item');
-
-                fetch(url, { method: 'POST' })
-                    .then(res => {
-                        if (res.ok || res.redirected) {
-                            row.remove();
-                            const list = document.getElementById('notificationList');
-                            if (list && list.querySelectorAll('.list-group-item').length === 0) {
-                                list.innerHTML = '<div class="list-group-item text-muted p-4 text-center">No notifications yet</div>';
-                            }
-                        }
-                    });
-            });
-
-            const offcanvas = document.getElementById('notificationPanel');
-            if (offcanvas) {
-                offcanvas.addEventListener('shown.bs.offcanvas', function () {
-                    updateBadge(false);
-                    fetch("{{ url_for('mark_notifications_read') }}", { method: 'POST' });
-                });
-            }
-        });
-    </script>
 
 </body>
 </html>
