@@ -14,8 +14,6 @@ from flask import Response
 from flask_mail import Message
 from functools import wraps
 
-DEMO_USER_ID = 0
-
 
 def login_required(f):
     @wraps(f)
@@ -30,6 +28,9 @@ def get_current_user():
     if 'user_id' in session:
         return User.query.get(session['user_id'])
     return None
+
+def current_user_id():
+    return session.get('user_id')
 
 def send_welcome_email(user):
     try:
@@ -75,7 +76,10 @@ def _comment_author(comment):
 
 
 def _get_notifications():
-    return Notification.query.filter_by(userID=DEMO_USER_ID).order_by(Notification.dateCreated.desc()).all()
+    uid = current_user_id()
+    if uid is None:
+        return []
+    return Notification.query.filter_by(userID=uid).order_by(Notification.dateCreated.desc()).all()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -130,7 +134,9 @@ def logout():
 
 @app.route('/')
 def dashboard():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
+
+    # Curators go to their own dashboard
     if user and user.role == 'curator':
         return redirect(url_for('curator_dashboard'))
 
@@ -180,6 +186,7 @@ def dashboard():
     has_unread = any(not n.isRead for n in notifications)
 
     return render_template('dashboard.html',
+                           user=user,
                            top_recipe=top_recipe,
                            popular=popular,
                            random_recipes=random_recipes,
@@ -190,7 +197,9 @@ def dashboard():
 
 
 @app.route('/recipe/create', methods=['GET', 'POST'])
+@login_required
 def create_recipe():
+    uid = current_user_id()
     form = CreateRecipeForm()
     form.category_id.choices = [(0, '-- Select Category --')] + [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
     form.dietary_tags.choices = [(t.id, t.name) for t in DietaryTag.query.order_by(DietaryTag.name).all()]
@@ -205,7 +214,7 @@ def create_recipe():
         ing_units = request.form.getlist('ing_unit')
 
         has_ingredient = any((n or '').strip() for n in ing_names)
-        duplicate = Recipe.query.filter_by(authorID=1, title=form.title.data.strip()).first()
+        duplicate = Recipe.query.filter_by(authorID=uid, title=form.title.data.strip()).first()
 
         if not has_ingredient:
             errors.append('At least one ingredient is required.')
@@ -235,7 +244,7 @@ def create_recipe():
 
         if not errors:
             new_recipe = Recipe(
-                authorID=1,
+                authorID=uid,
                 title=form.title.data.strip(),
                 description=(form.description.data or '').strip() or None,
                 instructions=form.instructions.data.strip(),
@@ -274,13 +283,14 @@ def create_recipe():
 
 @app.route('/recipe/<int:recipe_id>')
 def view_recipe(recipe_id):
+    uid = current_user_id()
     recipe = Recipe.query.get_or_404(recipe_id)
     ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
     categories = RecipeCategory.query.filter_by(recipeID=recipe_id).all()
     dietary_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
     allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
     avg_rating, rating_count = _get_avg_rating(recipe_id)
-    user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+    user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first() if uid else None
 
     sort = request.args.get('sort', 'newest')
     order = Comment.dateCreated.asc() if sort == 'oldest' else Comment.dateCreated.desc()
@@ -296,7 +306,7 @@ def view_recipe(recipe_id):
     if toast_id:
         toast_notif = Notification.query.get(toast_id)
 
-    memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
+    memberships = GroupMember.query.filter_by(userID=uid).all() if uid else []
 
     return render_template(
         'view_recipe.html',
@@ -318,7 +328,9 @@ def view_recipe(recipe_id):
 
 
 @app.route('/recipe/<int:recipe_id>/comments', methods=['POST'])
+@login_required
 def post_comment(recipe_id):
+    uid = current_user_id()
     recipe = Recipe.query.get_or_404(recipe_id)
 
     # Save star rating if provided
@@ -327,22 +339,22 @@ def post_comment(recipe_id):
     except (ValueError, TypeError):
         stars = 0
     if 1 <= stars <= 5:
-        existing = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+        existing = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first()
         if existing:
             existing.stars = stars
         else:
-            db.session.add(Rating(recipeID=recipe_id, userID=DEMO_USER_ID, stars=stars))
+            db.session.add(Rating(recipeID=recipe_id, userID=uid, stars=stars))
 
     # Save comment and create notification
     content = request.form.get('content', '').strip()
     if content:
-        new_comment = Comment(recipeID=recipe_id, userID=DEMO_USER_ID, content=content)
+        new_comment = Comment(recipeID=recipe_id, userID=uid, content=content)
         db.session.add(new_comment)
         db.session.flush()
 
         author = _comment_author(new_comment)
         new_notif = Notification(
-            userID=DEMO_USER_ID,
+            userID=uid,
             title='New Comment',
             message=f'{author} commented on "{recipe.title}"',
             recipeID=recipe_id,
@@ -357,7 +369,9 @@ def post_comment(recipe_id):
 
 
 @app.route('/recipe/<int:recipe_id>/rate', methods=['POST'])
+@login_required
 def rate_recipe(recipe_id):
+    uid = current_user_id()
     Recipe.query.get_or_404(recipe_id)
     try:
         stars = int(request.form.get('stars', 0))
@@ -367,16 +381,17 @@ def rate_recipe(recipe_id):
     if stars < 1 or stars > 5:
         return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
-    existing = Rating.query.filter_by(recipeID=recipe_id, userID=DEMO_USER_ID).first()
+    existing = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first()
     if existing:
         existing.stars = stars
     else:
-        db.session.add(Rating(recipeID=recipe_id, userID=DEMO_USER_ID, stars=stars))
+        db.session.add(Rating(recipeID=recipe_id, userID=uid, stars=stars))
     db.session.commit()
     return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
 
 @app.route('/recipe/<int:recipe_id>/delete', methods=['POST'])
+@login_required
 def delete_recipe(recipe_id):
     Recipe.query.get_or_404(recipe_id)
     Rating.query.filter_by(recipeID=recipe_id).delete()
@@ -389,17 +404,19 @@ def delete_recipe(recipe_id):
 
 
 @app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
+@login_required
 def delete_notification(notification_id):
     notif = Notification.query.get_or_404(notification_id)
     db.session.delete(notif)
     db.session.commit()
-    # Return to the page the user came from
     return redirect(request.referrer or url_for('dashboard'))
 
 
 @app.route('/notifications/mark-read', methods=['POST'])
+@login_required
 def mark_notifications_read():
-    Notification.query.filter_by(userID=DEMO_USER_ID, isRead=False).update({'isRead': True})
+    uid = current_user_id()
+    Notification.query.filter_by(userID=uid, isRead=False).update({'isRead': True})
     db.session.commit()
     return redirect(request.referrer or url_for('dashboard'))
 
@@ -429,17 +446,19 @@ def search():
                            notifications=notifications, has_unread=has_unread)
 
 @app.route('/groups')
+@login_required
 def my_groups():
-    user = User.query.get(DEMO_USER_ID)
-    memberships = GroupMember.query.filter_by(userID=DEMO_USER_ID).all()
+    uid = current_user_id()
+    user = get_current_user()
+    memberships = GroupMember.query.filter_by(userID=uid).all()
     groups = [m.group for m in memberships]
 
-    recipes = Recipe.query.filter_by(authorID=DEMO_USER_ID).order_by(Recipe.dateCreated.desc()).all()
+    recipes = Recipe.query.filter_by(authorID=uid).order_by(Recipe.dateCreated.desc()).all()
     recipe_data = [_recipe_card_data(r) for r in recipes]
 
-    message_count = GroupMessage.query.filter_by(senderID=DEMO_USER_ID).count()
+    message_count = GroupMessage.query.filter_by(senderID=uid).count()
 
-    avg = db.session.query(func.avg(Rating.stars)).filter_by(userID=DEMO_USER_ID).scalar()
+    avg = db.session.query(func.avg(Rating.stars)).filter_by(userID=uid).scalar()
     avg_rating = round(avg, 1) if avg else None
 
     notifications = _get_notifications()
@@ -456,13 +475,15 @@ def my_groups():
 
 
 @app.route('/groups/create', methods=['GET', 'POST'])
+@login_required
 def create_group():
+    uid = current_user_id()
     if request.method == 'POST':
         name = request.form.get('name')
         description = request.form.get('description')
 
         new_group = Group(
-            leaderID=DEMO_USER_ID,
+            leaderID=uid,
             name=name,
             description=description,
             dateCreated=datetime.utcnow()
@@ -472,7 +493,7 @@ def create_group():
 
         membership = GroupMember(
             groupID=new_group.id,
-            userID=DEMO_USER_ID,
+            userID=uid,
             dateJoined=datetime.utcnow()
         )
         db.session.add(membership)
@@ -499,11 +520,13 @@ def view_group(group_id):
 
 
 @app.route('/groups/<int:group_id>/message', methods=['POST'])
+@login_required
 def send_message(group_id):
+    uid = current_user_id()
     content = request.form.get('content')
     msg = GroupMessage(
         groupID=group_id,
-        senderID=DEMO_USER_ID,
+        senderID=uid,
         content=content,
         dateSent=datetime.utcnow()
     )
@@ -513,11 +536,13 @@ def send_message(group_id):
 
 
 @app.route('/groups/<int:group_id>/share/<int:recipe_id>', methods=['POST'])
+@login_required
 def share_recipe(group_id, recipe_id):
+    uid = current_user_id()
     shared = GroupRecipe(
         groupID=group_id,
         recipeID=recipe_id,
-        sharedByID=DEMO_USER_ID,
+        sharedByID=uid,
         dateSaved=datetime.utcnow()
     )
     db.session.add(shared)
@@ -526,6 +551,7 @@ def share_recipe(group_id, recipe_id):
 
 
 @app.route('/groups/<int:group_id>/add_member', methods=['POST'])
+@login_required
 def add_member(group_id):
     group = Group.query.get_or_404(group_id)
     email = request.form.get('email')
@@ -539,8 +565,9 @@ def add_member(group_id):
     return redirect(url_for('view_group', group_id=group_id))
 
 @app.route('/curator')
+@login_required
 def curator_dashboard():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
@@ -594,8 +621,9 @@ def curator_dashboard():
                            has_unread=has_unread)
 
 @app.route('/curator/user/<int:user_id>')
+@login_required
 def curator_user_profile(user_id):
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
@@ -617,8 +645,9 @@ def curator_user_profile(user_id):
 
 
 @app.route('/curator/export/recipes')
+@login_required
 def export_recipes():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
@@ -633,8 +662,9 @@ def export_recipes():
 
 
 @app.route('/curator/export/users')
+@login_required
 def export_users():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
@@ -649,8 +679,9 @@ def export_users():
 
 
 @app.route('/curator/export/groups')
+@login_required
 def export_groups():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
@@ -665,8 +696,9 @@ def export_groups():
                     headers={'Content-Disposition': 'attachment; filename=groups.csv'})
 
 @app.route('/curator/export/messages')
+@login_required
 def export_messages():
-    user = User.query.get(DEMO_USER_ID)
+    user = get_current_user()
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
