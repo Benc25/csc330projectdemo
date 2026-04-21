@@ -7,21 +7,22 @@
         <h1>Search Results</h1>
         <p>Query: <strong>{{ query or 'Nothing entered yet' }}</strong></p>
     </div>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
 </section>
 
 {% if query and results %}
-<div class="card-grid">
+<div style="display: flex; flex-direction: column; gap: 12px;">
     {% for item in results %}
     <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">Match</span>
-                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+        <article class="recipe-card" style="display: flex; align-items: center; gap: 20px; padding: 16px 20px;">
+            <div style="flex: 1; min-width: 0;">
+                <div class="recipe-card-top" style="margin-bottom: 6px;">
+                    <span class="mini-pill">{{ 'Group' if item.get('is_group') else 'Recipe' }}</span>
+                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                </div>
+                <h3 style="margin: 0 0 4px;">{{ item.recipe.title }}</h3>
+                <p style="margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ item.recipe.description or 'A recipe matching your search.' }}</p>
             </div>
-            <h3>{{ item.recipe.title }}</h3>
-            <p>{{ item.recipe.description or 'A recipe matching your search.' }}</p>
-            <div class="pill-row">
+            <div class="pill-row" style="flex-shrink: 0; flex-wrap: nowrap;">
                 <span class="pill">Serves {{ item.recipe.baseServings }}</span>
                 {% for name in item.category_names[:2] %}
                 <span class="pill">{{ name }}</span>

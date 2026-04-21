@@ -2,112 +2,121 @@
 {% block title %}{{ group.name }} | The Open Kitchen{% endblock %}
 
 {% block content %}
-<a href="{{ url_for('my_groups') }}" class="back-link">← Back to My Groups</a>
 
-<section class="hero-card mt-3">
+<section class="hero-card">
     <div>
-        <span class="eyebrow">Group</span>
         <h1>{{ group.name }}</h1>
         <p class="hero-copy">{{ group.description or 'No description provided.' }}</p>
-        <div class="pill-row mt-2">
-            <span class="pill">{{ members|length }} member{{ 's' if members|length != 1 }}</span>
-            <span class="pill">Created {{ group.dateCreated.strftime('%b %d, %Y') }}</span>
+        <div class="hero-actions">
+            <a href="{{ url_for('my_groups') }}" class="btn btn-secondary">← Back to Groups</a>
         </div>
     </div>
 </section>
 
-<!-- Members -->
-<section class="section-head mt-4">
-    <div>
-        <h2>Members</h2>
-        <p>People in this group.</p>
-    </div>
-</section>
-<div class="card-grid">
-    {% for m in members %}
-    <article class="recipe-card">
-        <div class="recipe-card-top">
-            <span class="mini-pill">{{ 'Leader' if m.userID == group.leaderID else 'Member' }}</span>
-        </div>
-        <h3>{{ m.user.firstName }} {{ m.user.lastName }}</h3>
-        <div class="recipe-card-footer">
-            <span class="muted-small">Joined {{ m.dateJoined.strftime('%b %d, %Y') }}</span>
-        </div>
-    </article>
-    {% endfor %}
-</div>
+<div class="row g-4 mt-2">
 
-{% if session.get('user_id') %}
-<form method="POST" action="{{ url_for('add_member', group_id=group.id) }}" class="d-flex gap-2 mt-3 mb-4">
-    <input type="email" name="email" class="form-control" placeholder="Add member by email">
-    <button type="submit" class="btn btn-primary">Add Member</button>
-</form>
-{% endif %}
-
-<!-- Shared Recipes -->
-<section class="section-head mt-4">
-    <div>
-        <h2>Shared Recipes</h2>
-        <p>Recipes shared with this group.</p>
-    </div>
-</section>
-{% if shared_recipes %}
-<div class="card-grid">
-    {% for gr in shared_recipes %}
-    <a href="{{ url_for('view_recipe', recipe_id=gr.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">Recipe</span>
-                <span class="muted-small">{{ gr.dateSaved.strftime('%b %d, %Y') }}</span>
+    <!-- LEFT: Chat -->
+    <div class="col-md-7">
+        <section class="section-head">
+            <div>
+                <h2>Group Chat</h2>
+                <p>Share ideas, tips, and feedback with the group.</p>
             </div>
-            <h3>{{ gr.recipe.title }}</h3>
-            <p>{{ gr.recipe.description or 'A shared Open Kitchen recipe.' }}</p>
-            <div class="recipe-card-footer">
-                <span class="muted-small">Shared by {{ gr.sharedBy.firstName }} {{ gr.sharedBy.lastName }}</span>
-                <span>Open →</span>
-            </div>
+        </section>
+
+        <article class="recipe-card mb-3" style="max-height: 400px; overflow-y: auto;" id="chatBox">
+            {% if messages %}
+                {% for msg in messages %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold" style="font-size: .9rem;">
+                            {{ msg.sender.firstName }} {{ msg.sender.lastName[0] }}.
+                        </span>
+                        <span class="muted-small">{{ msg.dateSent.strftime('%b %d at %I:%M %p') }}</span>
+                    </div>
+                    <p class="mb-0" style="font-size: .95rem;">{{ msg.content }}</p>
+                </div>
+                {% if not loop.last %}<hr class="my-2">{% endif %}
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No messages yet. Start the conversation!</p>
+            {% endif %}
         </article>
-    </a>
-    {% endfor %}
-</div>
-{% else %}
-<div class="empty-state">
-    <p>No recipes shared yet.</p>
-</div>
-{% endif %}
 
-<!-- Group Chat -->
-<section class="section-head mt-4">
-    <div>
-        <h2>Group Chat</h2>
-        <p>Messages from group members.</p>
-    </div>
-</section>
-<article class="panel-card push-top" id="messages-section">
-    {% if messages %}
-    <div class="comments-list">
-        {% for msg in messages %}
-        <div class="comment-item">
-            <div class="comment-meta">
-                <span class="comment-author">{{ msg.sender.firstName }} {{ msg.sender.lastName }}</span>
-                <span class="comment-date">{{ msg.dateSent.strftime('%b %d, %Y at %I:%M %p') }}</span>
+        <form method="POST" action="{{ url_for('send_message', group_id=group.id) }}">
+            <div class="d-flex gap-2">
+                <input type="text" name="content" class="form-control" placeholder="Type a message..." required>
+                <button type="submit" class="btn btn-primary">Send</button>
             </div>
-            <p class="comment-body">{{ msg.content }}</p>
-        </div>
-        {% endfor %}
+        </form>
     </div>
-    <div class="comments-divider"></div>
-    {% else %}
-    <p class="muted-small">No messages yet — start the conversation!</p>
-    <div class="comments-divider"></div>
-    {% endif %}
 
-    {% if session.get('user_id') %}
-    <form method="POST" action="{{ url_for('send_message', group_id=group.id) }}" class="d-flex gap-2 push-top">
-        <input type="text" name="content" class="form-control" placeholder="Send a message..." required>
-        <button type="submit" class="btn btn-primary">Send</button>
-    </form>
-    {% endif %}
-</article>
+    <!-- RIGHT: Members + Shared Recipes -->
+    <div class="col-md-5">
+
+        <!-- Members -->
+        <section class="section-head">
+            <div>
+                <h2>Members</h2>
+            </div>
+        </section>
+        <article class="recipe-card mb-4">
+            {% for m in members %}
+            <div class="d-flex align-items-center justify-content-between py-1">
+                <span>{{ m.user.firstName }} {{ m.user.lastName }}
+                    {% if m.userID == group.leaderID %}
+                    <span class="mini-pill ms-1">Leader</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+
+            {% if group.leaderID == session.get('user_id') %}
+            <hr>
+            <form method="POST" action="{{ url_for('add_member', group_id=group.id) }}" class="d-flex gap-2 mt-2">
+                <input type="email" name="email" class="form-control form-control-sm" placeholder="Member's email">
+                <button type="submit" class="btn btn-secondary btn-sm">Add</button>
+            </form>
+            {% endif %}
+        </article>
+
+        <!-- Shared Recipes -->
+        <section class="section-head">
+            <div>
+                <h2>Shared Recipes</h2>
+            </div>
+        </section>
+        {% if shared_recipes %}
+        <div>
+            {% for gr in shared_recipes %}
+            <div class="recipe-card-wrap mb-2">
+                <a href="{{ url_for('view_recipe', recipe_id=gr.recipe.id) }}" class="recipe-card-link">
+                    <article class="recipe-card">
+                        <div class="recipe-card-top">
+                            <span class="mini-pill">Shared</span>
+                        </div>
+                        <h3>{{ gr.recipe.title }}</h3>
+                        <div class="recipe-card-footer">
+                            <span class="muted-small">by {{ gr.sharedBy.firstName }} {{ gr.sharedBy.lastName[0] }}.</span>
+                            <span>Open →</span>
+                        </div>
+                    </article>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <article class="recipe-card">
+            <p class="text-muted mb-0">No recipes shared yet.</p>
+        </article>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+    const chatBox = document.getElementById('chatBox');
+    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+</script>
 
 {% endblock %}

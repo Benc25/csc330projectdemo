@@ -10,16 +10,6 @@
             <p class="muted-small">Welcome back to The Open Kitchen</p>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{% if category == 'error' %}error{% elif category == 'success' %}success{% else %}info{% endif %}" style="margin-bottom: 18px;">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
         <form method="POST" class="form-shell">
             {{ form.hidden_tag() }}
 
