@@ -638,7 +638,7 @@ def search():
                 seen.add(recipe.id)
                 results.append(_recipe_card_data(recipe))
 
-    notifications = _get_notifications()
+    notifications = _get_notifçications()
     has_unread = any(not n.isRead for n in notifications)
     return render_template('search.html', query=query, results=results,
                            notifications=notifications, has_unread=has_unread)
@@ -649,7 +649,7 @@ def search():
 def my_groups():
     user = get_current_user()
 
-    # 1. Fetch the groups the user is a member of
+    # Groups the user belongs to
     user_groups = (
         db.session.query(Group)
         .join(GroupMember, Group.id == GroupMember.groupID)
@@ -657,23 +657,34 @@ def my_groups():
         .all()
     )
 
-    # 2. Fetch the user's saved recipes (to fix the 'function' object is not iterable error)
-    saved_data = []
-    if user:
-        saved_query = (
-            db.session.query(Recipe)
-            .join(SavedRecipe, Recipe.id == SavedRecipe.recipeID)
-            .filter(SavedRecipe.userID == user.id)
-            .all()
-        )
-        # Assuming you have the _recipe_card_data helper function in routes.py
-        saved_data = [_recipe_card_data(r) for r in saved_query]
+    user_recipes = Recipe.query.filter_by(authorID=user.id).order_by(Recipe.dateCreated.desc()).all()
+    recipe_data = [_recipe_card_data(r) for r in user_recipes]
 
-    # 3. Render the template with all necessary data
+    saved_query = (
+        db.session.query(Recipe)
+        .join(SavedRecipe, Recipe.id == SavedRecipe.recipeID)
+        .filter(SavedRecipe.userID == user.id)
+        .all()
+    )
+    saved_recipes = [_recipe_card_data(r) for r in saved_query]
+
+    message_count = GroupMessage.query.filter_by(senderID=user.id).count()
+
+    ratings = (
+        db.session.query(func.avg(Rating.stars))
+        .join(Recipe, Rating.recipeID == Recipe.id)
+        .filter(Recipe.authorID == user.id)
+        .scalar()
+    )
+    avg_rating = round(ratings, 1) if ratings else None
+
     return render_template('groups/index.html',
                            user=user,
                            groups=user_groups,
-                           saved_recipes=saved_data)
+                           recipe_data=recipe_data,
+                           saved_recipes=saved_recipes,
+                           message_count=message_count,
+                           avg_rating=avg_rating)
 
 
 @app.route('/groups/create', methods=['GET', 'POST'])
