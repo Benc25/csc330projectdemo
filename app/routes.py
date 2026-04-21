@@ -171,12 +171,34 @@ def dashboard():
     newest_recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
     newest = [_recipe_card_data(r) for r in newest_recipes]
 
+    # --- INSERTED SAVED RECIPES LOGIC START ---
+    saved_recipes = []
+    if user:
+        saved_query = (
+            db.session.query(Recipe)
+            .join(SavedRecipe, Recipe.id == SavedRecipe.recipeID)
+            .filter(SavedRecipe.userID == user.id)
+            .all()
+        )
+        saved_recipes = [_recipe_card_data(r) for r in saved_query]
+    # --- INSERTED SAVED RECIPES LOGIC END ---
+
     stats = {
         'recipes': Recipe.query.count(),
         'categories': Category.query.count(),
         'tags': DietaryTag.query.count(),
         'allergens': Allergen.query.count(),
     }
+
+    # Make sure to add saved_recipes to the return context!
+    return render_template('dashboard.html', 
+                           user=user, 
+                           top_recipe=top_recipe, 
+                           popular=popular, 
+                           random_recipes=random_recipes, 
+                           newest=newest, 
+                           saved_recipes=saved_recipes, # Add this
+                           stats=stats)
 
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
@@ -625,30 +647,33 @@ def search():
 @app.route('/groups')
 @login_required
 def my_groups():
-    uid = current_user_id()
     user = get_current_user()
-    memberships = GroupMember.query.filter_by(userID=uid).all()
-    groups = [m.group for m in memberships]
 
-    recipes = Recipe.query.filter_by(authorID=uid).order_by(Recipe.dateCreated.desc()).all()
-    recipe_data = [_recipe_card_data(r) for r in recipes]
+    # 1. Fetch the groups the user is a member of
+    user_groups = (
+        db.session.query(Group)
+        .join(GroupMember, Group.id == GroupMember.groupID)
+        .filter(GroupMember.userID == user.id)
+        .all()
+    )
 
-    message_count = GroupMessage.query.filter_by(senderID=uid).count()
+    # 2. Fetch the user's saved recipes (to fix the 'function' object is not iterable error)
+    saved_data = []
+    if user:
+        saved_query = (
+            db.session.query(Recipe)
+            .join(SavedRecipe, Recipe.id == SavedRecipe.recipeID)
+            .filter(SavedRecipe.userID == user.id)
+            .all()
+        )
+        # Assuming you have the _recipe_card_data helper function in routes.py
+        saved_data = [_recipe_card_data(r) for r in saved_query]
 
-    avg = db.session.query(func.avg(Rating.stars)).filter_by(userID=uid).scalar()
-    avg_rating = round(avg, 1) if avg else None
-
-    notifications = _get_notifications()
-    has_unread = any(not n.isRead for n in notifications)
-
+    # 3. Render the template with all necessary data
     return render_template('groups/index.html',
-                           groups=groups,
-                           recipe_data=recipe_data,
-                           message_count=message_count,
-                           avg_rating=avg_rating,
                            user=user,
-                           notifications=notifications,
-                           has_unread=has_unread)
+                           groups=user_groups,
+                           saved_recipes=saved_data)
 
 
 @app.route('/groups/create', methods=['GET', 'POST'])
