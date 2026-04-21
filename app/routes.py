@@ -938,3 +938,69 @@ def export_messages():
         writer.writerow([m.id, f"{m.sender.firstName} {m.sender.lastName}", m.group.name, m.content, m.dateSent])
     return Response(si.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=messages.csv'})
+
+@app.route('/curator/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+def curator_delete_user(user_id):
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    target = User.query.get_or_404(user_id)
+
+    # Delete all user-related data
+    for recipe in Recipe.query.filter_by(authorID=user_id).all():
+        Rating.query.filter_by(recipeID=recipe.id).delete()
+        Comment.query.filter_by(recipeID=recipe.id).delete()
+        Notification.query.filter_by(recipeID=recipe.id).delete()
+        GroupRecipe.query.filter_by(recipeID=recipe.id).delete()
+        SavedRecipe.query.filter_by(recipeID=recipe.id).delete()
+        db.session.delete(recipe)
+
+    GroupMember.query.filter_by(userID=user_id).delete()
+    GroupMessage.query.filter_by(senderID=user_id).delete()
+    Rating.query.filter_by(userID=user_id).delete()
+    Comment.query.filter_by(userID=user_id).delete()
+    Notification.query.filter_by(userID=user_id).delete()
+    SavedRecipe.query.filter_by(userID=user_id).delete()
+
+    db.session.delete(target)
+    db.session.commit()
+    flash(f'User "{target.firstName} {target.lastName}" has been deleted.', 'success')
+    return redirect(url_for('curator_dashboard'))
+
+
+@app.route('/curator/group/<int:group_id>/delete', methods=['POST'])
+@login_required
+def curator_delete_group(group_id):
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    group = Group.query.get_or_404(group_id)
+    GroupMember.query.filter_by(groupID=group_id).delete()
+    GroupMessage.query.filter_by(groupID=group_id).delete()
+    GroupRecipe.query.filter_by(groupID=group_id).delete()
+    db.session.delete(group)
+    db.session.commit()
+    flash(f'Group "{group.name}" has been deleted.', 'success')
+    return redirect(url_for('curator_dashboard'))
+
+
+@app.route('/curator/recipe/<int:recipe_id>/delete', methods=['POST'])
+@login_required
+def curator_delete_recipe(recipe_id):
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    recipe = Recipe.query.get_or_404(recipe_id)
+    Rating.query.filter_by(recipeID=recipe_id).delete()
+    Comment.query.filter_by(recipeID=recipe_id).delete()
+    Notification.query.filter_by(recipeID=recipe_id).delete()
+    GroupRecipe.query.filter_by(recipeID=recipe_id).delete()
+    SavedRecipe.query.filter_by(recipeID=recipe_id).delete()
+    db.session.delete(recipe)
+    db.session.commit()
+    flash(f'Recipe "{recipe.title}" has been deleted.', 'success')
+    return redirect(url_for('curator_dashboard'))
