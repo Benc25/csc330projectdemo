@@ -202,3 +202,13 @@ class GroupRecipe(db.Model):
 
     recipe = db.relationship('Recipe', foreign_keys=[recipeID])
     sharedBy = db.relationship('User', foreign_keys=[sharedByID])
+
+class SavedRecipe(db.Model):
+    __tablename__ = 'saved_recipes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    userID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    recipeID = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    recipe = db.relationship('Recipe', backref='saved_by')
