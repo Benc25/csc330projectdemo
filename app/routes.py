@@ -171,7 +171,6 @@ def dashboard():
     newest_recipes = Recipe.query.order_by(Recipe.dateCreated.desc()).limit(6).all()
     newest = [_recipe_card_data(r) for r in newest_recipes]
 
-    # --- INSERTED SAVED RECIPES LOGIC START ---
     saved_recipes = []
     if user:
         saved_query = (
@@ -181,7 +180,6 @@ def dashboard():
             .all()
         )
         saved_recipes = [_recipe_card_data(r) for r in saved_query]
-    # --- INSERTED SAVED RECIPES LOGIC END ---
 
     stats = {
         'recipes': Recipe.query.count(),
@@ -189,16 +187,6 @@ def dashboard():
         'tags': DietaryTag.query.count(),
         'allergens': Allergen.query.count(),
     }
-
-    # Make sure to add saved_recipes to the return context!
-    return render_template('dashboard.html', 
-                           user=user, 
-                           top_recipe=top_recipe, 
-                           popular=popular, 
-                           random_recipes=random_recipes, 
-                           newest=newest, 
-                           saved_recipes=saved_recipes, # Add this
-                           stats=stats)
 
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
@@ -209,6 +197,7 @@ def dashboard():
                            popular=popular,
                            random_recipes=random_recipes,
                            newest=newest,
+                           saved_recipes=saved_recipes,
                            stats=stats,
                            notifications=notifications,
                            has_unread=has_unread)
@@ -296,7 +285,8 @@ def create_recipe():
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
     return render_template('recipe_form.html', form=form, units=units, errors=errors,
-                           notifications=notifications, has_unread=has_unread)
+                           notifications=notifications, has_unread=has_unread,
+                           is_edit=False, existing_ingredients=[], recipe=None)
 
 
 @app.route('/recipe/<int:recipe_id>')
@@ -311,7 +301,6 @@ def view_recipe(recipe_id):
     avg_rating, rating_count = _get_avg_rating(recipe_id)
     user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first() if uid else None
  
-    # Check if the current user has saved this recipe
     is_saved = False
     if uid:
         is_saved = SavedRecipe.query.filter_by(userID=uid, recipeID=recipe_id).first() is not None
@@ -435,7 +424,6 @@ def fork_recipe(recipe_id):
     db.session.add(forked_recipe)
     db.session.flush()
 
-    # Copy ingredients
     ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
     for ing in ingredients:
         new_ing = Ingredient(
@@ -446,19 +434,16 @@ def fork_recipe(recipe_id):
         )
         db.session.add(new_ing)
 
-    # Copy categories
     categories = RecipeCategory.query.filter_by(recipeID=recipe_id).all()
     for cat in categories:
         new_cat = RecipeCategory(recipeID=forked_recipe.id, categoryID=cat.categoryID)
         db.session.add(new_cat)
 
-    # Copy dietary tags
     dietary_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
     for tag in dietary_tags:
         new_tag = RecipeDietaryTag(recipeID=forked_recipe.id, dietaryTagID=tag.dietaryTagID)
         db.session.add(new_tag)
 
-    # Copy allergens
     allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
     for allergen in allergens:
         new_allergen = RecipeAllergen(recipeID=forked_recipe.id, allergenID=allergen.allergenID)
@@ -499,7 +484,6 @@ def edit_recipe(recipe_id):
     current_user = get_current_user()
     recipe = Recipe.query.get_or_404(recipe_id)
 
-    # Only allow the author to edit
     if recipe.authorID != current_user.id:
         flash('You do not have permission to edit this recipe.', 'error')
         return redirect(url_for('view_recipe', recipe_id=recipe_id))
@@ -511,6 +495,8 @@ def edit_recipe(recipe_id):
     units = MeasurementUnit.query.filter_by(isActive=True).order_by(MeasurementUnit.name).all()
 
     errors = []
+    # Always pre-load from DB; the GET branch uses this directly, POST failure overwrites it
+    existing_ingredients = Ingredient.query.filter_by(recipeID=recipe_id).all()
 
     if form.validate_on_submit():
         ing_names = request.form.getlist('ing_name')
@@ -521,6 +507,13 @@ def edit_recipe(recipe_id):
 
         if not has_ingredient:
             errors.append('At least one ingredient is required.')
+
+        # Only flag duplicate if the title changed AND another recipe already uses it
+        new_title = form.title.data.strip()
+        if new_title != recipe.title:
+            duplicate = Recipe.query.filter_by(authorID=current_user.id, title=new_title).first()
+            if duplicate:
+                errors.append('You already have a recipe with this name.')
 
         parsed_ingredients = []
         for idx, (name, qty, unit_id) in enumerate(zip(ing_names, ing_qtys, ing_units), start=1):
@@ -544,30 +537,25 @@ def edit_recipe(recipe_id):
             parsed_ingredients.append((name, quantity, parsed_unit_id))
 
         if not errors:
-            # Update recipe
-            recipe.title = form.title.data.strip()
+            recipe.title = new_title
             recipe.description = (form.description.data or '').strip() or None
             recipe.instructions = form.instructions.data.strip()
             recipe.baseServings = form.baseServings.data
             recipe.prepTime = form.prepTime.data or None
             recipe.cookTime = form.cookTime.data or None
 
-            # Delete and recreate ingredients
             Ingredient.query.filter_by(recipeID=recipe_id).delete()
             for name, quantity, unit_id in parsed_ingredients:
                 db.session.add(Ingredient(recipeID=recipe_id, unitID=unit_id, name=name, quantity=quantity))
 
-            # Update categories
             RecipeCategory.query.filter_by(recipeID=recipe_id).delete()
             if form.category_id.data and form.category_id.data != 0:
                 db.session.add(RecipeCategory(recipeID=recipe_id, categoryID=form.category_id.data))
 
-            # Update dietary tags
             RecipeDietaryTag.query.filter_by(recipeID=recipe_id).delete()
             for tag_id in form.dietary_tags.data:
                 db.session.add(RecipeDietaryTag(recipeID=recipe_id, dietaryTagID=tag_id))
 
-            # Update allergens
             RecipeAllergen.query.filter_by(recipeID=recipe_id).delete()
             for allergen_id in form.allergens.data:
                 db.session.add(RecipeAllergen(recipeID=recipe_id, allergenID=allergen_id))
@@ -576,8 +564,31 @@ def edit_recipe(recipe_id):
             flash('Recipe updated successfully!', 'success')
             return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
+        # Validation failed — re-render with the ingredients the user just submitted
+        # so they don't lose their edits
+        existing_ingredients = []
+        for name, qty, unit_id in zip(ing_names, ing_qtys, ing_units):
+            name = (name or '').strip()
+            if not name:
+                continue
+            try:
+                quantity = float(qty) if qty else 0.0
+            except ValueError:
+                quantity = 0.0
+            try:
+                uid_int = int(unit_id) if unit_id else 1
+            except ValueError:
+                uid_int = 1
+
+            class _FakeIng:
+                pass
+            fi = _FakeIng()
+            fi.name = name
+            fi.quantity = quantity
+            fi.unitID = uid_int
+            existing_ingredients.append(fi)
+
     elif request.method == 'GET':
-        # Populate form with existing data
         form.title.data = recipe.title
         form.description.data = recipe.description
         form.instructions.data = recipe.instructions
@@ -585,15 +596,12 @@ def edit_recipe(recipe_id):
         form.prepTime.data = recipe.prepTime
         form.cookTime.data = recipe.cookTime
 
-        # Set category
         category_link = RecipeCategory.query.filter_by(recipeID=recipe_id).first()
         form.category_id.data = category_link.categoryID if category_link else 0
 
-        # Set dietary tags
         diet_tags = RecipeDietaryTag.query.filter_by(recipeID=recipe_id).all()
         form.dietary_tags.data = [dt.dietaryTagID for dt in diet_tags]
 
-        # Set allergens
         allergen_links = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
         form.allergens.data = [a.allergenID for a in allergen_links]
 
@@ -604,7 +612,10 @@ def edit_recipe(recipe_id):
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
     return render_template('recipe_form.html', form=form, units=units, errors=errors, recipe=recipe,
-                           notifications=notifications, has_unread=has_unread, current_user=current_user, is_edit=True)
+                           notifications=notifications, has_unread=has_unread,
+                           current_user=current_user, is_edit=True,
+                           existing_ingredients=existing_ingredients)
+
 
 @app.route('/notifications/<int:notification_id>/delete', methods=['POST'])
 @login_required
@@ -654,7 +665,6 @@ def search():
 def my_groups():
     user = get_current_user()
 
-    # Groups the user belongs to
     user_groups = (
         db.session.query(Group)
         .join(GroupMember, Group.id == GroupMember.groupID)

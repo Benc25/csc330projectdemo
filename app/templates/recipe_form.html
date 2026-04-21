@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Create Recipe | The Open Kitchen{% endblock %}
+{% block title %}{{ 'Edit Recipe' if is_edit else 'Create Recipe' }} | The Open Kitchen{% endblock %}
 
 {% block content %}
 <section class="form-shell">
     <div class="section-head compact">
         <div>
-            <h1>Create a Recipe</h1>
+            <h1>{{ 'Edit Recipe' if is_edit else 'Create a Recipe' }}</h1>
         </div>
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
     </div>
@@ -21,7 +21,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('create_recipe') }}" class="form-card">
+    <form method="POST" action="{{ url_for('edit_recipe', recipe_id=recipe.id) if is_edit else url_for('create_recipe') }}" class="form-card">
         {{ form.hidden_tag() }}
 
         <div class="form-grid two">
@@ -66,6 +66,24 @@
                 </tr>
             </thead>
             <tbody id="ingredient-body">
+                {% if is_edit and existing_ingredients %}
+                    {% for ing in existing_ingredients %}
+                    <tr class="ingredient-row">
+                        <td><input type="text" name="ing_name" placeholder="e.g. pasta" value="{{ ing.name }}"></td>
+                        <td><input type="number" class="base-qty" step="0.01" min="0" name="ing_quantity" placeholder="1" value="{{ ing.quantity }}" oninput="scaleIngredients(document.getElementById('adjustServings').value)"></td>
+                        <td><span class="scaled-value">—</span></td>
+                        <td>
+                            <select name="ing_unit">
+                                <option value="">-- Unit --</option>
+                                {% for u in units %}
+                                <option value="{{ u.id }}" {% if u.id == ing.unitID %}selected{% endif %}>{{ u.name }} ({{ u.abbreviation }})</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><button type="button" class="icon-btn" onclick="removeIngredient(this)">×</button></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
                 <tr class="ingredient-row">
                     <td><input type="text" name="ing_name" placeholder="e.g. pasta"></td>
                     <td><input type="number" class="base-qty" step="0.01" min="0" name="ing_quantity" placeholder="1" oninput="scaleIngredients(document.getElementById('adjustServings').value)"></td>
@@ -80,6 +98,7 @@
                     </td>
                     <td><button type="button" class="icon-btn" onclick="removeIngredient(this)">×</button></td>
                 </tr>
+                {% endif %}
             </tbody>
         </table>
         <button type="button" class="btn btn-secondary" onclick="addIngredient()">+ Add Ingredient</button>
@@ -106,7 +125,8 @@
                 <label>Dietary Tags</label>
                 <div class="check-grid">
                     {% for value, label in form.dietary_tags.choices %}
-                    <label class="check-pill"><input type="checkbox" name="dietary_tags" value="{{ value }}"> {{ label }}</label>
+                    <label class="check-pill"><input type="checkbox" name="dietary_tags" value="{{ value }}"
+                        {% if value in form.dietary_tags.data %}checked{% endif %}> {{ label }}</label>
                     {% endfor %}
                 </div>
             </div>
@@ -115,15 +135,16 @@
                 <label>Allergens</label>
                 <div class="check-grid">
                     {% for value, label in form.allergens.choices %}
-                    <label class="check-pill allergen"><input type="checkbox" name="allergens" value="{{ value }}"> {{ label }}</label>
+                    <label class="check-pill allergen"><input type="checkbox" name="allergens" value="{{ value }}"
+                        {% if value in form.allergens.data %}checked{% endif %}> {{ label }}</label>
                     {% endfor %}
                 </div>
             </div>
         </div>
 
         <div class="form-actions push-top">
-            <button type="submit" class="btn btn-primary">Save Recipe</button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if is_edit else 'Save Recipe' }}</button>
+            <a href="{{ url_for('view_recipe', recipe_id=recipe.id) if is_edit else url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </section>
