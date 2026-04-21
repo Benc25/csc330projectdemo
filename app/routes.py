@@ -6,7 +6,7 @@ from app.forms import CreateRecipeForm, LoginForm, RegisterForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
-    Notification, Group, GroupMember, GroupMessage, GroupRecipe
+    Notification, Group, GroupMember, GroupMessage, GroupRecipe, SavedRecipe
 )
 import csv
 from io import StringIO
