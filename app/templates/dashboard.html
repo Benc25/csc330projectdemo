@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | The Open Kitchen{% endblock %}
-
+ 
 {% block content %}
 <section class="hero-card">
     <div>
@@ -14,7 +14,7 @@
             <a href="{{ url_for('search', q='pasta') }}" class="btn btn-secondary">Try Search</a>
         </div>
     </div>
-
+ 
     {% if top_recipe %}
     <div class="stats-panel" style="display:flex; gap: 1rem; align-items:stretch;">
         <!-- Highest rated takes up all remaining space -->
@@ -34,7 +34,7 @@
     </div>
     {% endif %}
 </section>
-
+ 
 <!-- Popular Recipes -->
 {% if popular %}
 <section class="section-head" style="margin-top: 36px;">
@@ -66,6 +66,7 @@
                 </div>
             </article>
         </a>
+        {% if user and user.id == item.recipe.authorID %}
         <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
               class="delete-form"
               onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
@@ -75,11 +76,12 @@
                 </svg>
             </button>
         </form>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
 {% endif %}
-
+ 
 <!-- Random Recipes -->
 {% if random_recipes %}
 <section class="section-head" style="margin-top: 36px;">
@@ -104,6 +106,7 @@
                     </div>
                 </article>
             </a>
+            {% if user and user.id == item.recipe.authorID %}
             <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
                   class="delete-form"
                   onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
@@ -113,12 +116,13 @@
                     </svg>
                 </button>
             </form>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
 </div>
 {% endif %}
-
+ 
 <!-- Newest Recipes -->
 {% if newest %}
 <section class="section-head" style="margin-top: 36px;">
@@ -143,6 +147,7 @@
                     </div>
                 </article>
             </a>
+            {% if user and user.id == item.recipe.authorID %}
             <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
                   class="delete-form"
                   onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
@@ -152,10 +157,11 @@
                     </svg>
                 </button>
             </form>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
 </div>
 {% endif %}
-
+ 
 {% endblock %}
