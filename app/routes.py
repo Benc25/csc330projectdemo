@@ -310,23 +310,28 @@ def view_recipe(recipe_id):
     allergens = RecipeAllergen.query.filter_by(recipeID=recipe_id).all()
     avg_rating, rating_count = _get_avg_rating(recipe_id)
     user_rating = Rating.query.filter_by(recipeID=recipe_id, userID=uid).first() if uid else None
-
+ 
+    # Check if the current user has saved this recipe
+    is_saved = False
+    if uid:
+        is_saved = SavedRecipe.query.filter_by(userID=uid, recipeID=recipe_id).first() is not None
+ 
     sort = request.args.get('sort', 'newest')
     order = Comment.dateCreated.asc() if sort == 'oldest' else Comment.dateCreated.desc()
     comments = Comment.query.filter_by(recipeID=recipe_id).order_by(order).all()
     for c in comments:
         c.author_name = _comment_author(c)
-
+ 
     notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
-
+ 
     toast_notif = None
     toast_id = session.pop('toast_notification_id', None)
     if toast_id:
         toast_notif = Notification.query.get(toast_id)
-
+ 
     memberships = GroupMember.query.filter_by(userID=uid).all() if uid else []
-
+ 
     return render_template(
         'view_recipe.html',
         recipe=recipe,
@@ -338,6 +343,7 @@ def view_recipe(recipe_id):
         avg_rating=avg_rating,
         rating_count=rating_count,
         user_rating=user_rating,
+        is_saved=is_saved,
         comments=comments,
         sort=sort,
         notifications=notifications,
@@ -345,7 +351,6 @@ def view_recipe(recipe_id):
         toast_notif=toast_notif,
         memberships=memberships,
     )
-
 
 @app.route('/recipe/<int:recipe_id>/comments', methods=['POST'])
 @login_required
@@ -638,7 +643,7 @@ def search():
                 seen.add(recipe.id)
                 results.append(_recipe_card_data(recipe))
 
-    notifications = _get_notifçications()
+    notifications = _get_notifications()
     has_unread = any(not n.isRead for n in notifications)
     return render_template('search.html', query=query, results=results,
                            notifications=notifications, has_unread=has_unread)
