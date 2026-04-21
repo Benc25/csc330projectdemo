@@ -72,7 +72,7 @@
             </div>
             {% endfor %}
 
-            {% if group.leaderID == 1 %}
+            {% if group.leaderID == session.get('user_id') %}
             <hr>
             <form method="POST" action="{{ url_for('add_member', group_id=group.id) }}" class="d-flex gap-2 mt-2">
                 <input type="email" name="email" class="form-control form-control-sm" placeholder="Member's email">
@@ -116,7 +116,6 @@
 </div>
 
 <script>
-    // Auto-scroll chat to bottom
     const chatBox = document.getElementById('chatBox');
     if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 </script>
