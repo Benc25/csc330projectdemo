@@ -2,7 +2,7 @@
 {% block title %}{{ recipe.title }} | The Open Kitchen{% endblock %}
  
 {% block content %}
-<a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+<a href="javascript:void(0)" onclick="goBack()" class="back-link">← Back</a>
  
 <section class="recipe-view-shell">
     <div class="recipe-hero">
@@ -238,6 +238,15 @@
 </div>
  
 <script>
+// ── Back navigation ───────────────────────────────────────
+function goBack() {
+    if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
+        history.back();
+    } else {
+        window.location.href = "{{ url_for('dashboard') }}";
+    }
+}
+
 // ── Ingredient scaling ────────────────────────────────────
 const baseServings = {{ recipe.baseServings }};
 function scaleIngredients(target) {
