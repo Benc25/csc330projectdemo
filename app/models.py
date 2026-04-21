@@ -50,6 +50,21 @@ class Recipe(db.Model):
     dietary_tags = db.relationship('RecipeDietaryTag', backref='recipe', lazy=True, cascade='all, delete-orphan')
     allergens = db.relationship('RecipeAllergen', backref='recipe', lazy=True, cascade='all, delete-orphan')
 
+    def fork(self, user_id):
+        """Return a forked copy of this recipe."""
+        new_recipe = Recipe(
+            title=f"{self.title} (Forked)",
+            description=self.description,
+            instructions=self.instructions,
+            baseServings=self.baseServings,
+            prepTime=self.prepTime,
+            cookTime=self.cookTime,
+            authorID=user_id,
+            forkedFrom=self.id
+        )
+        return new_recipe
+
+
 class Ingredient(db.Model):
     __tablename__ = 'ingredients'
 
