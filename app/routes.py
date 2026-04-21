@@ -215,6 +215,11 @@ def create_recipe():
     form.allergens.choices = [(a.id, a.name) for a in Allergen.query.order_by(Allergen.name).all()]
     units = MeasurementUnit.query.filter_by(isActive=True).order_by(MeasurementUnit.name).all()
 
+    if form.dietary_tags.data is None:
+        form.dietary_tags.data = []
+    if form.allergens.data is None:
+        form.allergens.data = []
+
     errors = []
 
     if form.validate_on_submit():
