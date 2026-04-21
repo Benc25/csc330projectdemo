@@ -128,8 +128,7 @@
 
                     {% if n.recipeID %}
                     <a href="{{ url_for('view_recipe', recipe_id=n.recipeID) }}"
-                       class="flex-grow-1 text-decoration-none text-dark"
-                       data-bs-dismiss="offcanvas">
+                       class="flex-grow-1 text-decoration-none text-dark">
                     {% else %}
                     <div class="flex-grow-1">
                     {% endif %}
@@ -184,6 +183,72 @@
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showNotificationToast(title, message, time = "just now") {
+            const toastHTML = `
+                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">${title}</strong>
+                        <small class="text-muted">${time}</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">${message}</div>
+                </div>`;
 
+            document.getElementById('toastContainer').insertAdjacentHTML('beforeend', toastHTML);
+            
+            const toastEl = document.querySelector('.toast:last-child');
+            const toast = new bootstrap.Toast(toastEl, { delay: 7000 });
+            toast.show();
+
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        }
+
+        function updateBadge(show) {
+            const badge = document.getElementById('notificationBadge');
+            if (badge) badge.style.display = show ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Show toast if there's a new notification from the server
+            const pending = document.getElementById('pendingNotification');
+            if (pending && pending.dataset.show === "true") {
+                showNotificationToast(
+                    pending.dataset.title,
+                    pending.dataset.message
+                );
+            }
+
+            // Delete notification without closing the panel
+            document.getElementById('notificationPanel').addEventListener('click', function (e) {
+                const btn = e.target.closest('.notif-delete-btn');
+                if (!btn) return;
+
+                const url = btn.dataset.deleteUrl;
+                const row = btn.closest('.list-group-item');
+
+                fetch(url, { method: 'POST' })
+                    .then(res => {
+                        if (res.ok || res.redirected) {
+                            row.remove();
+                            // If no items left, show the empty state
+                            const list = document.getElementById('notificationList');
+                            if (list && list.querySelectorAll('.list-group-item').length === 0) {
+                                list.innerHTML = '<div class="list-group-item text-muted p-4 text-center">No notifications yet</div>';
+                            }
+                        }
+                    });
+            });
+
+            // Mark notifications as read and hide badge when panel is opened
+            const offcanvas = document.getElementById('notificationPanel');
+            if (offcanvas) {
+                offcanvas.addEventListener('shown.bs.offcanvas', function () {
+                    updateBadge(false);
+                    fetch("{{ url_for('mark_notifications_read') }}", { method: 'POST' });
+                });
+            }
+        });
+    </script>
 </body>
 </html>
