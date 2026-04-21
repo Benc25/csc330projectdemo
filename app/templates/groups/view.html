@@ -1,295 +1,113 @@
 {% extends "base.html" %}
-{% block title %}{{ recipe.title }} | The Open Kitchen{% endblock %}
- 
+{% block title %}{{ group.name }} | The Open Kitchen{% endblock %}
+
 {% block content %}
-<a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
- 
-<section class="recipe-view-shell">
-    <div class="recipe-hero">
-        <div>
-            <div class="pill-row push-bottom-small">
-                {% for rc in categories %}
-                <span class="mini-pill">{{ rc.category.name }}</span>
-                {% endfor %}
-                {% if not categories %}<span class="mini-pill">Recipe</span>{% endif %}
-            </div>
-            <h1>
-                {{ recipe.title }}
-                <button type="button" class="btn btn-secondary btn-sm ms-2"
-                        data-bs-toggle="modal" data-bs-target="#shareToGroupModal">
-                    Share to Group
-                </button>
-            </h1>
-            <p class="lead">{{ recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-            <div class="pill-row push-top-small">
-                <span class="pill">Serves {{ recipe.baseServings }}</span>
-                {% if recipe.prepTime %}<span class="pill">Prep {{ recipe.prepTime }} min</span>{% endif %}
-                {% if recipe.cookTime %}<span class="pill">Cook {{ recipe.cookTime }} min</span>{% endif %}
-            </div>
-        </div>
-        <div class="scale-preview-box compact-view">
-            <label for="adjustServings">Adjust servings:</label>
-            <input type="number" id="adjustServings" min="1" value="{{ recipe.baseServings }}" oninput="scaleIngredients(this.value)">
-            <span>Live scaling demo</span>
+<a href="{{ url_for('my_groups') }}" class="back-link">← Back to My Groups</a>
+
+<section class="hero-card mt-3">
+    <div>
+        <span class="eyebrow">Group</span>
+        <h1>{{ group.name }}</h1>
+        <p class="hero-copy">{{ group.description or 'No description provided.' }}</p>
+        <div class="pill-row mt-2">
+            <span class="pill">{{ members|length }} member{{ 's' if members|length != 1 }}</span>
+            <span class="pill">Created {{ group.dateCreated.strftime('%b %d, %Y') }}</span>
         </div>
     </div>
- 
-    <!-- Fork / Save / Edit / Delete banner -->
-    {% if current_user and current_user.id != recipe.authorID %}
-    <div style="margin-bottom: 18px; padding: 16px; background: #edf3ff; border: 1px solid #d4e1fb; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div>
-            <p style="margin: 0; color: var(--text); font-weight: 600;">Like this recipe?</p>
-            <p class="muted-small" style="margin: 4px 0 0 0;">Fork it to your account and customize it, or save it to your profile</p>
-        </div>
-        <div style="display: flex; gap: 16px; align-items: center;">
-            <form method="POST" action="{{ url_for('fork_recipe', recipe_id=recipe.id) }}" style="margin: 0;">
-                <button type="submit" class="btn btn-primary">Fork Recipe</button>
-            </form>
-            <form method="POST" action="{{ url_for('save_recipe', recipe_id=recipe.id) }}" style="margin: 0;" id="saveToggleForm">
-                <label class="save-toggle" title="{% if is_saved %}Saved — click to unsave{% else %}Not saved — click to save{% endif %}">
-                    <span class="save-toggle-label">Save</span>
-                    <span class="save-toggle-switch {% if is_saved %}is-on{% endif %}">
-                        <span class="save-toggle-knob"></span>
-                    </span>
-                    <input type="checkbox" class="save-toggle-checkbox"
-                           {% if is_saved %}checked{% endif %}
-                           onchange="document.getElementById('saveToggleForm').submit()">
-                </label>
-            </form>
-        </div>
-    </div>
-    {% elif current_user and current_user.id == recipe.authorID %}
-    <div style="margin-bottom: 18px; padding: 16px; background: #f0e7ff; border: 1px solid #dcc5f5; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div>
-            <p style="margin: 0; color: var(--text); font-weight: 600;">Your Recipe</p>
-            <p class="muted-small" style="margin: 4px 0 0 0;">You created this recipe on {{ recipe.dateCreated.strftime('%B %d, %Y') }}</p>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <a href="{{ url_for('edit_recipe', recipe_id=recipe.id) }}" class="btn" style="background: #fff4e1; color: #8b5f00; border: none; cursor: pointer; padding: 12px 18px; border-radius: 14px; font-weight: 700;">Edit Recipe</a>
-            <form method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe.id) }}" style="margin: 0;" onsubmit="return confirm('Delete this recipe? This action cannot be undone.')">
-                <button type="submit" class="btn" style="background: #ffe8da; color: #aa4d14; border: none; cursor: pointer; padding: 12px 18px; border-radius: 14px; font-weight: 700;">Delete Recipe</button>
-            </form>
-        </div>
-    </div>
-    {% elif not current_user %}
-    <div style="margin-bottom: 18px; padding: 16px; background: #edf3ff; border: 1px solid #d4e1fb; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-        <div>
-            <p style="margin: 0; color: var(--text); font-weight: 600;">Like this recipe?</p>
-            <p class="muted-small" style="margin: 4px 0 0 0;">Sign in to fork it to your account</p>
-        </div>
-        <a href="{{ url_for('login') }}" class="btn btn-primary">Sign In</a>
-    </div>
-    {% endif %}
- 
-    <div class="content-grid">
-        <article class="panel-card" id="ingredients-section">
-            <h2>Ingredients</h2>
-            <table class="ingredient-table view-mode">
-                <thead>
-                    <tr>
-                        <th>Ingredient</th>
-                        <th>Quantity</th>
-                        <th>Unit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ing in ingredients %}
-                    <tr>
-                        <td>{{ ing.name }}</td>
-                        <td><span class="scaled-qty" data-base="{{ ing.quantity }}">{{ ing.quantity }}</span></td>
-                        <td>{{ ing.unit.abbreviation }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </article>
- 
-        <article class="panel-card">
-            <h2>Recipe Details</h2>
- 
-            <h3 class="tiny-heading">Community Rating</h3>
-            <div class="avg-rating-display">
-                {% if avg_rating %}
-                    <div class="star-display" aria-label="{{ avg_rating }} out of 5 stars">
-                        {% for i in range(1, 6) %}
-                            {% if i <= avg_rating|round(0, 'floor')|int %}
-                                <span class="star filled">★</span>
-                            {% elif i - 0.5 <= avg_rating %}
-                                <span class="star half">★</span>
-                            {% else %}
-                                <span class="star empty">★</span>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                    <span class="avg-score">{{ avg_rating }}<span class="muted-small"> / 5 ({{ rating_count }} rating{{ 's' if rating_count != 1 }})</span></span>
-                {% else %}
-                    <span class="muted-small">No ratings yet — be the first!</span>
-                {% endif %}
-            </div>
- 
-            {% if dietary_tags %}
-            <h3 class="tiny-heading">Dietary Tags</h3>
-            <div class="pill-row push-bottom-small">
-                {% for dt in dietary_tags %}
-                <span class="pill">{{ dt.dietaryTag.name }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
- 
-            {% if allergens %}
-            <h3 class="tiny-heading">Allergens</h3>
-            <div class="pill-row">
-                {% for ra in allergens %}
-                <span class="pill allergen-pill">⚠ {{ ra.allergen.name }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
- 
-            <p class="muted-small push-top">Created {{ recipe.dateCreated.strftime('%Y-%m-%d') }}</p>
-        </article>
-    </div>
- 
-    <article class="panel-card push-top" id="instructions-section">
-        <h2>Instructions</h2>
-        <div class="instructions-box">{{ recipe.instructions }}</div>
-    </article>
- 
-    <!-- Leave a Comment -->
-    <article class="panel-card push-top" id="comments-section">
- 
-        <div class="leave-comment-wrap">
-            <h2>Leave a Comment</h2>
-            <p class="muted-small">Did you make this? Rate the recipe and share your thoughts.</p>
- 
-            <form method="POST" action="{{ url_for('post_comment', recipe_id=recipe.id) }}">
- 
-                <div class="leave-comment-rating-row">
-                    <span class="leave-comment-rate-label">DID YOU MAKE THIS? RATE THE RECIPE!</span>
-                    <div class="star-picker" id="starPicker">
-                        {% for i in range(1, 6) %}
-                        <label class="star-label" title="{{ i }} star{{ 's' if i != 1 }}">
-                            <input type="radio" name="stars" value="{{ i }}"
-                                {% if user_rating and user_rating.stars == i %}checked{% endif %}>
-                            <span class="star-icon {% if user_rating and i <= user_rating.stars %}active{% endif %}">★</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
- 
-                <div class="field-block push-top">
-                    <label for="commentText">COMMENT</label>
-                    <textarea id="commentText" name="content" rows="5" placeholder="Share your thoughts, tips, or questions..."></textarea>
-                </div>
- 
-                <div class="comment-form-actions push-top">
-                    <button type="submit" class="btn btn-primary">Post Comment</button>
-                </div>
-            </form>
-        </div>
- 
-        {% if comments %}
-        <div class="comments-divider"></div>
-        <div class="comments-header">
-            <h3>{{ comments|length }} Comment{{ 's' if comments|length != 1 }}</h3>
-            <div class="sort-control">
-                <label for="sortComments">Sort:</label>
-                <select id="sortComments" onchange="window.location = '?sort=' + this.value + '#comments-section'">
-                    <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest First</option>
-                    <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest First</option>
-                </select>
-            </div>
-        </div>
-        <div class="comments-list">
-            {% for comment in comments %}
-            <div class="comment-item">
-                <div class="comment-meta">
-                    <span class="comment-author">{{ comment.author_name }}</span>
-                    <span class="comment-date">{{ comment.dateCreated.strftime('%b %d, %Y at %I:%M %p') }}</span>
-                </div>
-                <p class="comment-body">{{ comment.content }}</p>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="muted-small push-top">No comments yet — be the first!</p>
-        {% endif %}
- 
-    </article>
 </section>
- 
-<!-- Share to Group Modal -->
-<div class="modal fade" id="shareToGroupModal" tabindex="-1" aria-labelledby="shareToGroupModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="shareToGroupModalLabel">Share "{{ recipe.title }}" to a Group</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                {% if memberships %}
-                    {% for m in memberships %}
-                    <form method="POST" action="{{ url_for('share_recipe', group_id=m.group.id, recipe_id=recipe.id) }}">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>{{ m.group.name }}</span>
-                            <button type="submit" class="btn btn-primary btn-sm">Share</button>
-                        </div>
-                    </form>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">You're not in any groups yet. <a href="{{ url_for('my_groups') }}">Create or join one.</a></p>
-                {% endif %}
-            </div>
-        </div>
+
+<!-- Members -->
+<section class="section-head mt-4">
+    <div>
+        <h2>Members</h2>
+        <p>People in this group.</p>
     </div>
+</section>
+<div class="card-grid">
+    {% for m in members %}
+    <article class="recipe-card">
+        <div class="recipe-card-top">
+            <span class="mini-pill">{{ 'Leader' if m.userID == group.leaderID else 'Member' }}</span>
+        </div>
+        <h3>{{ m.user.firstName }} {{ m.user.lastName }}</h3>
+        <div class="recipe-card-footer">
+            <span class="muted-small">Joined {{ m.dateJoined.strftime('%b %d, %Y') }}</span>
+        </div>
+    </article>
+    {% endfor %}
 </div>
- 
-<script>
-// ── Ingredient scaling ────────────────────────────────────
-const baseServings = {{ recipe.baseServings }};
-function scaleIngredients(target) {
-    const adjusted = parseFloat(target);
-    if (!adjusted || adjusted <= 0) return;
-    const ratio = adjusted / baseServings;
-    document.querySelectorAll('.scaled-qty').forEach(el => {
-        const base = parseFloat(el.dataset.base);
-        el.textContent = (base * ratio).toFixed(2).replace(/\.00$/, '');
-    });
-}
- 
-// ── Star picker ───────────────────────────────────────────
-(function () {
-    const picker = document.getElementById('starPicker');
-    if (!picker) return;
-    const labels = picker.querySelectorAll('.star-label');
-    const icons = picker.querySelectorAll('.star-icon');
-    const radios = picker.querySelectorAll('input[type=radio]');
-    const btn = picker.closest('form').querySelector('button[type=submit]');
- 
-    function highlight(upTo) {
-        icons.forEach((icon, idx) => {
-            icon.classList.toggle('active', idx < upTo);
-            icon.classList.toggle('hover', idx < upTo);
-        });
-    }
-    function resetToSelected() {
-        const checked = picker.querySelector('input:checked');
-        const val = checked ? parseInt(checked.value) : 0;
-        icons.forEach((icon, idx) => {
-            icon.classList.toggle('active', idx < val);
-            icon.classList.remove('hover');
-        });
-    }
-    labels.forEach((label, idx) => {
-        label.addEventListener('mouseenter', () => highlight(idx + 1));
-        label.addEventListener('mouseleave', resetToSelected);
-    });
-    radios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            resetToSelected();
-            btn.textContent = 'Submit Rating';
-        });
-    });
-    resetToSelected();
-})();
-</script>
+
+{% if session.get('user_id') %}
+<form method="POST" action="{{ url_for('add_member', group_id=group.id) }}" class="d-flex gap-2 mt-3 mb-4">
+    <input type="email" name="email" class="form-control" placeholder="Add member by email">
+    <button type="submit" class="btn btn-primary">Add Member</button>
+</form>
+{% endif %}
+
+<!-- Shared Recipes -->
+<section class="section-head mt-4">
+    <div>
+        <h2>Shared Recipes</h2>
+        <p>Recipes shared with this group.</p>
+    </div>
+</section>
+{% if shared_recipes %}
+<div class="card-grid">
+    {% for gr in shared_recipes %}
+    <a href="{{ url_for('view_recipe', recipe_id=gr.recipe.id) }}" class="recipe-card-link">
+        <article class="recipe-card">
+            <div class="recipe-card-top">
+                <span class="mini-pill">Recipe</span>
+                <span class="muted-small">{{ gr.dateSaved.strftime('%b %d, %Y') }}</span>
+            </div>
+            <h3>{{ gr.recipe.title }}</h3>
+            <p>{{ gr.recipe.description or 'A shared Open Kitchen recipe.' }}</p>
+            <div class="recipe-card-footer">
+                <span class="muted-small">Shared by {{ gr.sharedBy.firstName }} {{ gr.sharedBy.lastName }}</span>
+                <span>Open →</span>
+            </div>
+        </article>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No recipes shared yet.</p>
+</div>
+{% endif %}
+
+<!-- Group Chat -->
+<section class="section-head mt-4">
+    <div>
+        <h2>Group Chat</h2>
+        <p>Messages from group members.</p>
+    </div>
+</section>
+<article class="panel-card push-top" id="messages-section">
+    {% if messages %}
+    <div class="comments-list">
+        {% for msg in messages %}
+        <div class="comment-item">
+            <div class="comment-meta">
+                <span class="comment-author">{{ msg.sender.firstName }} {{ msg.sender.lastName }}</span>
+                <span class="comment-date">{{ msg.dateSent.strftime('%b %d, %Y at %I:%M %p') }}</span>
+            </div>
+            <p class="comment-body">{{ msg.content }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="comments-divider"></div>
+    {% else %}
+    <p class="muted-small">No messages yet — start the conversation!</p>
+    <div class="comments-divider"></div>
+    {% endif %}
+
+    {% if session.get('user_id') %}
+    <form method="POST" action="{{ url_for('send_message', group_id=group.id) }}" class="d-flex gap-2 push-top">
+        <input type="text" name="content" class="form-control" placeholder="Send a message..." required>
+        <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+    {% endif %}
+</article>
+
 {% endblock %}
