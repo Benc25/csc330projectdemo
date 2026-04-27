@@ -16,6 +16,7 @@ class User(db.Model):
     avatar = db.Column(db.String(255), nullable=True)
     preferMetric = db.Column(db.Boolean, default=False, nullable=False)
     disableNotifications = db.Column(db.Boolean, default=False, nullable=False)
+    lastSeen = db.Column(db.DateTime, nullable=True, default=None)
     recipes = db.relationship('Recipe', backref='author', lazy=True)
     def set_password(self, password):
         self.password = generate_password_hash(password)

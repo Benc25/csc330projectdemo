@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Recipe Stats | The Open Kitchen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('curator_reports') }}" class="back-link">← Back to Reports</a>
+
+<!-- Time range toggle + export -->
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="time-btn active" data-period="24h">Last 24h</button>
+        <button class="time-btn" data-period="7d">Last 7 Days</button>
+        <button class="time-btn" data-period="28d">Last 28 Days</button>
+        <button class="time-btn" data-period="1y">Last Year</button>
+        <button class="time-btn" data-period="all">All Time</button>
+    </div>
+    <form id="exportForm" action="{{ url_for('curator_recipe_stats_export') }}" method="GET" style="display: flex; align-items: center; gap: 8px;">
+        <input type="hidden" name="period" id="exportPeriod" value="24h">
+        <input type="number" name="count" id="exportCount" min="1" max="1000" placeholder="Top N"
+               style="width: 90px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: .875rem; background: var(--surface); color: var(--text);">
+        <button type="submit" class="btn btn-primary" style="white-space: nowrap; font-size: .875rem;">Generate Report</button>
+    </form>
+</div>
+
+<!-- Tables (one per period, shown/hidden by JS) -->
+{% for period, rows in recipe_data.items() %}
+<div class="period-table" id="table-{{ period }}" style="display: {{ 'block' if period == '24h' else 'none' }};">
+    {% if rows %}
+    <div class="recipe-card" style="padding: 0; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; font-size: .9rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--line); background: var(--surface-alt, #f8f8f8);">
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; width: 40px;">#</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Recipe</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Author</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Avg Rating</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Ratings</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr style="border-bottom: 1px solid var(--line);">
+                    <td style="padding: 12px 16px; color: var(--muted); font-weight: 700;">{{ loop.index }}</td>
+                    <td style="padding: 12px 16px;">
+                        <a href="{{ url_for('view_recipe', recipe_id=row.id) }}" style="text-decoration: none; color: inherit; font-weight: 600;">
+                            {{ row.title }}
+                        </a>
+                    </td>
+                    <td style="padding: 12px 16px; color: var(--muted);">{{ row.author }}</td>
+                    <td style="padding: 12px 16px;">
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="color: #f59e0b;">★</span>
+                            {{ row.avg_rating }}
+                        </span>
+                    </td>
+                    <td style="padding: 12px 16px; color: var(--muted);">{{ row.rating_count }}</td>
+                    <td style="padding: 12px 16px; color: var(--muted); font-size: .82rem;">{{ row.date_created }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No rated recipes</h3>
+        <p>No recipes with ratings found for this time period.</p>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<style>
+    .time-btn {
+        padding: 7px 16px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: .875rem;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+    .time-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+    .time-btn.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+</style>
+
+<script>
+    const buttons = document.querySelectorAll('.time-btn');
+    const exportPeriod = document.getElementById('exportPeriod');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            document.querySelectorAll('.period-table').forEach(t => t.style.display = 'none');
+            document.getElementById('table-' + btn.dataset.period).style.display = 'block';
+
+            exportPeriod.value = btn.dataset.period;
+        });
+    });
+</script>
+{% endblock %}

@@ -2,7 +2,7 @@ from flask import render_template, request, redirect, url_for, session, flash
 import types, os, uuid
 from sqlalchemy import or_, func
 from app import app, db, mail
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.forms import CreateRecipeForm, LoginForm, RegisterForm, ProfileSettingsForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
@@ -49,6 +49,14 @@ def current_user_id():
 @app.context_processor
 def inject_current_user():
     return {'current_user': get_current_user()}
+
+@app.before_request
+def update_last_seen():
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
+        if user:
+            user.lastSeen = datetime.now()
+            db.session.commit()
 
 def send_welcome_email(user):
     try:
@@ -904,6 +912,262 @@ def curator_dashboard():
                            users=users,
                            search_query=search_query,
                            stats=stats)
+
+
+@app.route('/curator/reports')
+@login_required
+def curator_reports():
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    online_cutoff = datetime.now() - timedelta(minutes=5)
+    stats = {
+        'active_users': User.query.filter_by(isActive=True).count(),
+        'online_users': User.query.filter(User.lastSeen >= online_cutoff).count(),
+        'total_recipes': Recipe.query.count(),
+        'total_messages': GroupMessage.query.count(),
+    }
+
+    return render_template('curator/reports.html', stats=stats)
+
+
+@app.route('/curator/reports/user-activity')
+@login_required
+def curator_user_activity():
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    online_cutoff = datetime.now() - timedelta(minutes=5)
+
+    search_query = request.args.get('q', '').strip()
+    base_q = User.query.filter_by(isActive=True)
+    if search_query:
+        base_q = base_q.filter(
+            or_(
+                User.firstName.ilike(f'%{search_query}%'),
+                User.lastName.ilike(f'%{search_query}%'),
+                User.email.ilike(f'%{search_query}%'),
+                User.role.ilike(f'%{search_query}%'),
+            )
+        )
+    active_users = base_q.all()
+    online_users = User.query.filter(User.lastSeen >= online_cutoff).all()
+
+    return render_template('curator/user_activity.html',
+                           active_users=active_users,
+                           online_users=online_users,
+                           online_cutoff=online_cutoff,
+                           search_query=search_query)
+
+
+@app.route('/curator/reports/recipes')
+@login_required
+def curator_recipe_stats():
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    now = datetime.now()
+    periods = {
+        '24h':   now - timedelta(hours=24),
+        '7d':    now - timedelta(days=7),
+        '28d':   now - timedelta(days=28),
+        '1y':    now - timedelta(days=365),
+        'all':   None,
+    }
+
+    def top_recipes(since):
+        q = (
+            db.session.query(
+                Recipe,
+                func.avg(Rating.stars).label('avg_rating'),
+                func.count(Rating.id).label('rating_count'),
+                User.firstName,
+                User.lastName,
+            )
+            .join(Rating, Rating.recipeID == Recipe.id)
+            .join(User, User.id == Recipe.authorID)
+        )
+        if since:
+            q = q.filter(Recipe.dateCreated >= since)
+        q = q.group_by(Recipe.id).order_by(func.avg(Rating.stars).desc(), func.count(Rating.id).desc()).limit(10)
+        return [
+            {
+                'id': r.Recipe.id,
+                'title': r.Recipe.title,
+                'author': f'{r.firstName} {r.lastName}',
+                'avg_rating': round(r.avg_rating, 2),
+                'rating_count': r.rating_count,
+                'date_created': r.Recipe.dateCreated.strftime('%b %d, %Y'),
+            }
+            for r in q.all()
+        ]
+
+    recipe_data = {key: top_recipes(since) for key, since in periods.items()}
+
+    return render_template('curator/recipe_stats.html', recipe_data=recipe_data)
+
+
+@app.route('/curator/reports/recipes/export')
+@login_required
+def curator_recipe_stats_export():
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    period = request.args.get('period', 'all')
+    try:
+        count = max(1, int(request.args.get('count', 10)))
+    except (ValueError, TypeError):
+        count = 10
+
+    now = datetime.now()
+    period_map = {
+        '24h': now - timedelta(hours=24),
+        '7d':  now - timedelta(days=7),
+        '28d': now - timedelta(days=28),
+        '1y':  now - timedelta(days=365),
+        'all': None,
+    }
+    since = period_map.get(period)
+
+    q = (
+        db.session.query(
+            Recipe,
+            func.avg(Rating.stars).label('avg_rating'),
+            func.count(Rating.id).label('rating_count'),
+            User.firstName,
+            User.lastName,
+        )
+        .join(Rating, Rating.recipeID == Recipe.id)
+        .join(User, User.id == Recipe.authorID)
+    )
+    if since:
+        q = q.filter(Recipe.dateCreated >= since)
+    q = q.group_by(Recipe.id).order_by(func.avg(Rating.stars).desc(), func.count(Rating.id).desc()).limit(count)
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Rank', 'Title', 'Author', 'Avg Rating', 'Rating Count', 'Date Created'])
+    for i, r in enumerate(q.all(), start=1):
+        writer.writerow([
+            i,
+            r.Recipe.title,
+            f'{r.firstName} {r.lastName}',
+            round(r.avg_rating, 2),
+            r.rating_count,
+            r.Recipe.dateCreated.strftime('%Y-%m-%d'),
+        ])
+
+    period_labels = {'24h': 'last_24h', '7d': 'last_7_days', '28d': 'last_28_days', '1y': 'last_year', 'all': 'all_time'}
+    filename = f'top_{count}_recipes_{period_labels.get(period, period)}.csv'
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
+
+@app.route('/curator/reports/messages')
+@login_required
+def curator_message_stats():
+    import re
+    from collections import Counter, defaultdict
+
+    user = get_current_user()
+    if not user or user.role != 'curator':
+        return redirect(url_for('dashboard'))
+
+    STOP_WORDS = {
+        'the','a','an','and','or','but','in','on','at','to','for','of','with',
+        'is','it','its','was','are','be','been','being','have','has','had',
+        'do','did','does','will','would','could','should','may','might','shall',
+        'not','no','so','as','by','from','that','this','these','those','then',
+        'than','if','i','you','he','she','we','they','me','him','her','us','them',
+        'my','your','his','our','their','what','which','who','how','when','where',
+        'just','up','out','about','into','more','also','can','all','there','here',
+        'get','got','like','well','one','some','any','over','now','only','very',
+        'too','use','s','t','re','ve','ll','d','m',
+    }
+
+    now = datetime.now()
+
+    def make_buckets(bucket_type, since):
+        """Return (keys, labels) for the given bucket type."""
+        keys, labels = [], []
+        if bucket_type == 'hour':
+            for i in range(23, -1, -1):
+                t = (now - timedelta(hours=i)).replace(minute=0, second=0, microsecond=0)
+                keys.append(t.strftime('%Y-%m-%d-%H'))
+                labels.append(t.strftime('%b %d %H:00'))
+        elif bucket_type == 'day':
+            total_days = (now.date() - since.date()).days + 1
+            for i in range(total_days - 1, -1, -1):
+                t = now.date() - timedelta(days=i)
+                keys.append(t.strftime('%Y-%m-%d'))
+                labels.append(t.strftime('%b %d'))
+        else:  # month
+            if since:
+                start = since.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            else:
+                earliest = GroupMessage.query.order_by(GroupMessage.dateSent.asc()).first()
+                start = earliest.dateSent.replace(day=1, hour=0, minute=0, second=0, microsecond=0) if earliest else now.replace(day=1)
+            cur = start
+            end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            while cur <= end:
+                keys.append(cur.strftime('%Y-%m'))
+                labels.append(cur.strftime('%b %Y'))
+                cur = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
+        return keys, labels
+
+    def compute_period(bucket_type, since):
+        keys, labels = make_buckets(bucket_type, since)
+        q = GroupMessage.query
+        if since:
+            q = q.filter(GroupMessage.dateSent >= since)
+        messages = q.with_entities(GroupMessage.content, GroupMessage.dateSent).all()
+
+        counter = Counter()
+        bucket_counts = defaultdict(Counter)
+
+        for content, sent in messages:
+            if bucket_type == 'hour':
+                key = sent.strftime('%Y-%m-%d-%H')
+            elif bucket_type == 'day':
+                key = sent.strftime('%Y-%m-%d')
+            else:
+                key = sent.strftime('%Y-%m')
+
+            words = re.findall(r"[a-zA-Z']+", content.lower())
+            for w in words:
+                w = w.strip("'")
+                if len(w) > 1 and w not in STOP_WORDS:
+                    counter[w] += 1
+                    bucket_counts[key][w] += 1
+
+        top_words = counter.most_common(25)
+        series = {word: [bucket_counts[k][word] for k in keys] for word, _ in top_words}
+
+        return {
+            'words': [[w, c] for w, c in top_words],
+            'labels': labels,
+            'series': series,
+        }
+
+    period_configs = [
+        ('24h', 'hour',  now - timedelta(hours=24)),
+        ('7d',  'day',   now - timedelta(days=7)),
+        ('28d', 'day',   now - timedelta(days=28)),
+        ('1y',  'month', now - timedelta(days=365)),
+        ('all', 'month', None),
+    ]
+
+    word_data = {key: compute_period(bt, since) for key, bt, since in period_configs}
+
+    return render_template('curator/message_stats.html', word_data=word_data)
 
 
 @app.route('/curator/user/<int:user_id>')

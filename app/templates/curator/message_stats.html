@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Message Stats | The Open Kitchen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('curator_reports') }}" class="back-link">← Back to Reports</a>
+
+<!-- Time range toggle -->
+<div style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;">
+    <button class="time-btn active" data-period="24h">Last 24h</button>
+    <button class="time-btn" data-period="7d">Last 7 Days</button>
+    <button class="time-btn" data-period="28d">Last 28 Days</button>
+    <button class="time-btn" data-period="1y">Last Year</button>
+    <button class="time-btn" data-period="all">All Time</button>
+</div>
+
+<!-- Split layout -->
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+
+    <!-- LEFT: word table -->
+    <div style="flex: 1 1 0; min-width: 0;">
+        {% for period, data in word_data.items() %}
+        <div class="period-table" id="table-{{ period }}" style="display: {{ 'block' if period == '24h' else 'none' }};">
+            {% if data.words %}
+            <div class="recipe-card" style="padding: 0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; font-size: .9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--line); background: var(--surface-alt, #f8f8f8);">
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 600; width: 36px;">#</th>
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Word</th>
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Times Used</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for word, count in data.words %}
+                        <tr class="word-row" data-word="{{ word }}" data-period="{{ period }}"
+                            style="border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s;">
+                            <td style="padding: 12px 16px; color: var(--muted); font-weight: 700;">{{ loop.index }}</td>
+                            <td style="padding: 12px 16px; font-weight: 600;">{{ word }}</td>
+                            <td style="padding: 12px 16px; color: var(--muted);">{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <h3>No messages yet</h3>
+                <p>No group messages found for this time period.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- RIGHT: chart panel -->
+    <div style="flex: 1 1 0; min-width: 0;">
+        <div class="recipe-card" style="padding: 1.5rem; height: 100%; min-height: 340px; display: flex; flex-direction: column; justify-content: center; align-items: center;" id="chartPanel">
+            <p class="muted-small" id="chartPlaceholder" style="text-align: center;">Click a word to see its usage over time</p>
+            <div style="width: 100%; display: none;" id="chartContainer">
+                <p style="font-size: .9rem; font-weight: 600; margin-bottom: 12px; text-align: center;" id="chartTitle"></p>
+                <canvas id="wordChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .time-btn {
+        padding: 7px 16px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: .875rem;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+    .time-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .time-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .word-row:hover { background: var(--surface-alt, #f8f8f8); }
+    .word-row.selected { background: var(--primary-light, #e8f0ff); }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+    const wordData = {{ word_data | tojson }};
+    let currentPeriod = '24h';
+    let chart = null;
+
+    // Time toggle
+    const buttons = document.querySelectorAll('.time-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.period-table').forEach(t => t.style.display = 'none');
+            currentPeriod = btn.dataset.period;
+            document.getElementById('table-' + currentPeriod).style.display = 'block';
+
+            // Clear chart selection when period changes
+            document.querySelectorAll('.word-row').forEach(r => r.classList.remove('selected'));
+            document.getElementById('chartPlaceholder').style.display = 'block';
+            document.getElementById('chartContainer').style.display = 'none';
+            if (chart) { chart.destroy(); chart = null; }
+        });
+    });
+
+    // Word row click → draw chart
+    document.addEventListener('click', function(e) {
+        const row = e.target.closest('.word-row');
+        if (!row) return;
+
+        const word = row.dataset.word;
+        const period = row.dataset.period;
+        if (period !== currentPeriod) return;
+
+        // Highlight selected row
+        document.querySelectorAll('.word-row').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+
+        const data = wordData[period];
+        const labels = data.labels;
+        const values = data.series[word] || [];
+
+        document.getElementById('chartPlaceholder').style.display = 'none';
+        document.getElementById('chartContainer').style.display = 'block';
+        document.getElementById('chartTitle').textContent = '"' + word + '" usage over time';
+
+        if (chart) chart.destroy();
+
+        const ctx = document.getElementById('wordChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: word,
+                    data: values,
+                    borderColor: '#3a5fc8',
+                    backgroundColor: 'rgba(58,95,200,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.3,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.parsed.y} time${ctx.parsed.y !== 1 ? 's' : ''}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 },
+                        grid: { color: 'rgba(0,0,0,0.06)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxTicksLimit: 12,
+                            maxRotation: 45,
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
