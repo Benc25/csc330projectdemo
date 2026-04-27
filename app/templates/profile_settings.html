@@ -13,31 +13,118 @@
     {% endif %}
     {% endwith %}
 
-    <article class="recipe-card mb-4" style="display: flex; align-items: center; gap: 20px;">
-        {% if user.avatar %}
-        <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}"
-             alt="Your profile picture"
-             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">
-        {% else %}
-        <div style="width: 90px; height: 90px; border-radius: 50%; background: var(--primary-light, #e8f0ff); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: var(--primary, #3a5fc8); flex-shrink: 0;">
-            {{ user.firstName[0] }}{{ user.lastName[0] }}
-        </div>
-        {% endif %}
-        <div>
-            <p style="margin: 0; font-weight: 600;">{{ user.firstName }} {{ user.lastName }}</p>
-            <p class="muted-small" style="margin: 2px 0 0 0;">{{ user.email }}</p>
-        </div>
-    </article>
-
     <form method="POST" action="{{ url_for('profile_settings') }}" enctype="multipart/form-data" class="form-card">
         {{ form.hidden_tag() }}
-        <div class="field-block">
-            <label>Profile Picture</label>
-            {{ form.avatar() }}
+
+        <!-- Hidden file input -->
+        {{ form.avatar(id='avatarInput', style='display:none;') }}
+
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <!-- Clickable avatar -->
+            <div id="avatarWrapper"
+                 onclick="document.getElementById('avatarInput').click()"
+                 title="Click to change photo"
+                 style="position: relative; width: 90px; height: 90px; border-radius: 50%; cursor: pointer; flex-shrink: 0; overflow: hidden;">
+
+                {% if user.avatar %}
+                <img id="avatarPreview"
+                     src="{{ url_for('static', filename='uploads/' + user.avatar) }}"
+                     alt="Your profile picture"
+                     style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; display: block;">
+                {% else %}
+                <div id="avatarInitials"
+                     style="width: 90px; height: 90px; border-radius: 50%; background: var(--primary-light, #e8f0ff); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: var(--primary, #3a5fc8);">
+                    {{ user.firstName[0] }}{{ user.lastName[0] }}
+                </div>
+                {% endif %}
+
+                <!-- Hover overlay -->
+                <div style="position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s ease;" id="avatarOverlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="white" viewBox="0 0 16 16">
+                        <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                        <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 0 3.172 4zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div>
+                <p style="margin: 0; font-weight: 600;">{{ user.firstName }} {{ user.lastName }}</p>
+                <p class="muted-small" style="margin: 2px 0 0 0;">{{ user.email }}</p>
+                <p class="muted-small" style="margin: 6px 0 0 0; font-size: .8rem;" id="avatarHint"></p>
+            </div>
         </div>
-        <div class="form-actions push-top">
+
+        <div class="form-actions push-top" id="submitRow" style="display: none;">
             {{ form.submit(class='btn btn-primary') }}
         </div>
     </form>
 </section>
+
+<script>
+    const wrapper  = document.getElementById('avatarWrapper');
+    const overlay  = document.getElementById('avatarOverlay');
+    const input    = document.getElementById('avatarInput');
+    const hint     = document.getElementById('avatarHint');
+    const submitRow = document.getElementById('submitRow');
+
+    wrapper.addEventListener('mouseenter', () => overlay.style.opacity = '1');
+    wrapper.addEventListener('mouseleave', () => overlay.style.opacity = '0');
+
+    input.addEventListener('change', function () {
+        if (!this.files || !this.files[0]) return;
+
+        // Preview the chosen image immediately
+        const reader = new FileReader();
+        reader.onload = e => {
+            // Replace whatever is inside the wrapper with a preview img
+            const existing = document.getElementById('avatarPreview') || document.getElementById('avatarInitials');
+            if (existing) existing.remove();
+            const img = document.createElement('img');
+            img.id = 'avatarPreview';
+            img.src = e.target.result;
+            img.style.cssText = 'width:90px;height:90px;border-radius:50%;object-fit:cover;display:block;';
+            wrapper.insertBefore(img, overlay);
+        };
+        reader.readAsDataURL(this.files[0]);
+
+        hint.textContent = this.files[0].name;
+        submitRow.style.display = 'flex';
+    });
+</script>
+
+<!-- Settings box -->
+<form method="POST" action="{{ url_for('profile_settings') }}">
+    {{ form.hidden_tag() }}
+    <input type="hidden" name="action" value="preferences">
+
+    <article class="recipe-card" style="margin-top: 18px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+            <div>
+                <p style="margin: 0; font-weight: 600; color: var(--text);">Standardize to Metric</p>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="preferMetric" {% if user.preferMetric %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <span class="toggle-track">
+                    <span class="toggle-knob"></span>
+                </span>
+            </label>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--line); margin: 14px 0;">
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+            <div>
+                <p style="margin: 0; font-weight: 600; color: var(--text);">Disable Notification Pop-ups</p>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="disableNotifications" {% if user.disableNotifications %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <span class="toggle-track">
+                    <span class="toggle-knob"></span>
+                </span>
+            </label>
+        </div>
+    </article>
+</form>
 {% endblock %}
