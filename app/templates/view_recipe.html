@@ -87,7 +87,13 @@
  
     <div class="content-grid">
         <article class="panel-card" id="ingredients-section">
-            <h2>Ingredients</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <h2 style="margin: 0;">Ingredients</h2>
+                <div class="unit-toggle">
+                    <button class="unit-toggle-btn active" id="btnImperial" onclick="setUnitSystem('imperial')">Imperial</button>
+                    <button class="unit-toggle-btn" id="btnMetric" onclick="setUnitSystem('metric')">Metric</button>
+                </div>
+            </div>
             <table class="ingredient-table view-mode">
                 <thead>
                     <tr>
@@ -100,8 +106,13 @@
                     {% for ing in ingredients %}
                     <tr>
                         <td>{{ ing.name }}</td>
-                        <td><span class="scaled-qty" data-base="{{ ing.quantity }}">{{ ing.quantity }}</span></td>
-                        <td>{{ ing.unit.abbreviation }}</td>
+                        <td><span class="scaled-qty"
+                                  data-base="{{ ing.quantity }}"
+                                  data-unit-orig="{{ ing.unit.abbreviation }}"
+                                  data-system-orig="{{ ing.unit.system }}">{{ '%g' % ing.quantity }}</span></td>
+                        <td class="unit-cell"
+                            data-unit-orig="{{ ing.unit.abbreviation }}"
+                            data-system-orig="{{ ing.unit.system }}">{{ ing.unit.abbreviation }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -365,13 +376,56 @@ function goBack() {
     }
 }
 
+// Unit conversion table — each unit maps to its counterpart in the other system
+const UNIT_CONVERT = {
+    // imperial → metric
+    'cup':  { toMetric: 'ml',   factor: 236.588 },
+    'tbsp': { toMetric: 'ml',   factor: 14.787  },
+    'tsp':  { toMetric: 'ml',   factor: 4.929   },
+    'oz':   { toMetric: 'g',    factor: 28.3495 },
+    'lb':   { toMetric: 'kg',   factor: 0.453592 },
+    // metric → imperial
+    'ml':   { toImperial: 'tbsp', factor: 0.067628 },
+    'g':    { toImperial: 'oz',   factor: 0.035274  },
+    'kg':   { toImperial: 'lb',   factor: 2.20462   },
+    'l':    { toImperial: 'cup',  factor: 4.22675   },
+};
+
+let activeUnitSystem = 'imperial';
+
+function setUnitSystem(system) {
+    activeUnitSystem = system;
+    document.getElementById('btnImperial').classList.toggle('active', system === 'imperial');
+    document.getElementById('btnMetric').classList.toggle('active', system === 'metric');
+    scaleIngredients(document.getElementById('adjustServings').value);
+}
+
 function scaleIngredients(target) {
     const adjusted = parseFloat(target);
     if (!adjusted || adjusted <= 0) return;
     const ratio = adjusted / {{ recipe.baseServings }};
+
     document.querySelectorAll('.scaled-qty').forEach(el => {
-        const base = parseFloat(el.dataset.base);
-        el.textContent = (base * ratio).toFixed(2).replace(/\.00$/, '');
+        const base      = parseFloat(el.dataset.base);
+        const origUnit  = el.dataset.unitOrig;
+        const origSys   = el.dataset.systemOrig;
+        const conv      = UNIT_CONVERT[origUnit];
+        const row       = el.closest('tr');
+        const unitCell  = row ? row.querySelector('.unit-cell') : null;
+
+        let qty         = base * ratio;
+        let displayUnit = origUnit;
+
+        if (activeUnitSystem === 'metric' && origSys === 'imperial' && conv && conv.toMetric) {
+            qty        *= conv.factor;
+            displayUnit = conv.toMetric;
+        } else if (activeUnitSystem === 'imperial' && origSys === 'metric' && conv && conv.toImperial) {
+            qty        *= conv.factor;
+            displayUnit = conv.toImperial;
+        }
+
+        el.textContent = parseFloat(qty.toFixed(2)).toString();
+        if (unitCell) unitCell.textContent = displayUnit;
     });
 }
  
