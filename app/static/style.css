@@ -613,6 +613,31 @@ h1, h2, h3 { margin: 0 0 10px; }
     filter: brightness(0.95);
 }
 
+/* ── Unit system toggle ──────────────────────────────────── */
+.unit-toggle {
+    display: inline-flex;
+    background: #edf3ff;
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+}
+.unit-toggle-btn {
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+.unit-toggle-btn.active {
+    background: white;
+    color: var(--primary-dark);
+    box-shadow: 0 1px 4px rgba(40,62,113,.1);
+}
+
 /* ── Quick Tips ──────────────────────────────────────────── */
 .instructions-header {
     display: flex;
