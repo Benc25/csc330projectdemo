@@ -228,15 +228,26 @@ def dashboard():
 def profile_settings():
     user = get_current_user()
     form = ProfileSettingsForm()
-    if form.validate_on_submit():
-        new_avatar = save_upload(form.avatar.data)
-        if new_avatar:
-            user.avatar = new_avatar
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'avatar' and form.validate_on_submit():
+            new_avatar = save_upload(form.avatar.data)
+            if new_avatar:
+                user.avatar = new_avatar
+                db.session.commit()
+                flash('Profile picture updated!', 'success')
+            else:
+                flash('Please choose a valid image file.', 'error')
+
+        elif action == 'preferences':
+            user.preferMetric = request.form.get('preferMetric') == 'on'
+            user.disableNotifications = request.form.get('disableNotifications') == 'on'
             db.session.commit()
-            flash('Profile picture updated!', 'success')
-        else:
-            flash('Please choose a valid image file.', 'error')
+
         return redirect(url_for('profile_settings'))
+
     return render_template('profile_settings.html', form=form, user=user)
 
 
@@ -911,6 +922,8 @@ def curator_user_profile(user_id):
         role=_profile.role,
         dateCreated=_profile.dateCreated,
         avatar=_profile.avatar,
+        preferMetric=_profile.preferMetric,
+        disableNotifications=_profile.disableNotifications,
     )
     recipes = Recipe.query.filter_by(authorID=user_id).order_by(Recipe.dateCreated.desc()).all()
     memberships = GroupMember.query.filter_by(userID=user_id).all()

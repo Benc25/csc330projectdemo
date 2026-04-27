@@ -613,6 +613,46 @@ h1, h2, h3 { margin: 0 0 10px; }
     filter: brightness(0.95);
 }
 
+/* ── Settings toggle switch ──────────────────────────────── */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.toggle-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-track {
+    display: block;
+    width: 48px;
+    height: 26px;
+    background: #ccd7ed;
+    border-radius: 999px;
+    transition: background .2s ease;
+    position: relative;
+}
+.toggle-switch input:checked + .toggle-track {
+    background: var(--primary);
+}
+.toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .2s ease;
+}
+.toggle-switch input:checked + .toggle-track .toggle-knob {
+    transform: translateX(22px);
+}
+
 /* ── Unit system toggle ──────────────────────────────────── */
 .unit-toggle {
     display: inline-flex;

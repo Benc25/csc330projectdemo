@@ -90,8 +90,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                 <h2 style="margin: 0;">Ingredients</h2>
                 <div class="unit-toggle">
-                    <button class="unit-toggle-btn active" id="btnImperial" onclick="setUnitSystem('imperial')">Imperial</button>
-                    <button class="unit-toggle-btn" id="btnMetric" onclick="setUnitSystem('metric')">Metric</button>
+                    <button class="unit-toggle-btn {% if not current_user or not current_user.preferMetric %}active{% endif %}" id="btnImperial" onclick="setUnitSystem('imperial')">Imperial</button>
+                    <button class="unit-toggle-btn {% if current_user and current_user.preferMetric %}active{% endif %}" id="btnMetric" onclick="setUnitSystem('metric')">Metric</button>
                 </div>
             </div>
             <table class="ingredient-table view-mode">
@@ -391,7 +391,7 @@ const UNIT_CONVERT = {
     'l':    { toImperial: 'cup',  factor: 4.22675   },
 };
 
-let activeUnitSystem = 'imperial';
+let activeUnitSystem = '{{ "metric" if current_user and current_user.preferMetric else "imperial" }}';
 
 function setUnitSystem(system) {
     activeUnitSystem = system;
@@ -463,5 +463,11 @@ function scaleIngredients(target) {
     });
     resetToSelected();
 })();
+
+// Apply unit preference on page load
+scaleIngredients(document.getElementById('adjustServings').value);
+// Sync toggle button state
+document.getElementById('btnImperial').classList.toggle('active', activeUnitSystem === 'imperial');
+document.getElementById('btnMetric').classList.toggle('active', activeUnitSystem === 'metric');
 </script>
 {% endblock %}

@@ -222,7 +222,8 @@
         document.addEventListener('DOMContentLoaded', function () {
             // Show toast if there's a new notification from the server
             const pending = document.getElementById('pendingNotification');
-            if (pending && pending.dataset.show === "true") {
+            const notificationsDisabled = {{ 'true' if current_user and current_user.disableNotifications else 'false' }};
+            if (pending && pending.dataset.show === "true" && !notificationsDisabled) {
                 showNotificationToast(
                     pending.dataset.title,
                     pending.dataset.message
