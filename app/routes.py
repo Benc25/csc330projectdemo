@@ -259,6 +259,16 @@ def profile_settings():
     return render_template('profile_settings.html', form=form, user=user)
 
 
+@app.route('/profile/toggle-dnd', methods=['POST'])
+@login_required
+def toggle_dnd():
+    from flask import jsonify
+    user = get_current_user()
+    user.doNotDisturb = not user.doNotDisturb
+    db.session.commit()
+    return jsonify({'doNotDisturb': user.doNotDisturb})
+
+
 @app.route('/recipe/create', methods=['GET', 'POST'])
 @login_required
 def create_recipe():
