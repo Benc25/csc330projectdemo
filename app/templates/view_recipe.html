@@ -147,7 +147,33 @@
     </div>
  
     <article class="panel-card push-top" id="instructions-section">
-        <h2>Instructions</h2>
+        <div class="instructions-header">
+            <h2>Instructions</h2>
+            <div class="instructions-actions">
+                <!-- (i) icon — only shown if tips exist -->
+                {% if quick_tips %}
+                <button type="button"
+                        class="btn-icon-info"
+                        data-bs-toggle="modal"
+                        data-bs-target="#viewTipsModal"
+                        title="View Quick Tips">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle-fill" viewBox="0 0 16 16">
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/>
+                    </svg>
+                    <span class="tip-count-badge">{{ quick_tips|length }}</span>
+                </button>
+                {% endif %}
+                <!-- Add Tip button — only for logged-in users -->
+                {% if current_user %}
+                <button type="button"
+                        class="btn btn-secondary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addTipModal">
+                    + Add Tip
+                </button>
+                {% endif %}
+            </div>
+        </div>
         <div class="instructions-box">{{ recipe.instructions }}</div>
     </article>
  
@@ -214,6 +240,89 @@
     </article>
 </section>
  
+<!-- Add Quick Tip Modal -->
+{% if current_user %}
+<div class="modal fade" id="addTipModal" tabindex="-1" aria-labelledby="addTipModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTipModalLabel">Share a Quick Tip</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('post_tip', recipe_id=recipe.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="col-form-label fw-semibold">Contributor</label>
+                        <p class="text-muted mb-0" style="font-size: .9rem;">
+                            {{ current_user.firstName }} {{ current_user.lastName[0] }}.
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipTitle" class="col-form-label fw-semibold">Title</label>
+                        <input type="text" class="form-control" id="tipTitle" name="tip_title"
+                               placeholder="e.g. Substitute for butter" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipContent" class="col-form-label fw-semibold">Tip</label>
+                        <textarea class="form-control" id="tipContent" name="tip_content"
+                                  rows="4" placeholder="Share your culinary hack or ingredient substitution..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Post Tip</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- View Quick Tips Modal -->
+<div class="modal fade" id="viewTipsModal" tabindex="-1" aria-labelledby="viewTipsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewTipsModalLabel">
+                    Quick Tips for "{{ recipe.title }}"
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                {% if quick_tips %}
+                <div class="list-group list-group-flush">
+                    {% for tip in quick_tips %}
+                    <div class="list-group-item py-3 px-4">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="fw-bold" style="color: var(--primary-dark);">{{ tip.title }}</span>
+                            <span class="text-muted ms-3" style="font-size: .75rem; white-space: nowrap;">
+                                {{ tip.dateCreated.strftime('%b %d, %Y') }}
+                            </span>
+                        </div>
+                        <p class="mb-1" style="font-size: .9rem; line-height: 1.6;">{{ tip.content }}</p>
+                        <span class="text-muted" style="font-size: .8rem;">— {{ tip.author_name }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center p-4">No tips posted yet — be the first!</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                {% if current_user %}
+                <button type="button" class="btn btn-primary"
+                        data-bs-dismiss="modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addTipModal">
+                    + Add Tip
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Share to Group Modal -->
 <div class="modal fade" id="shareToGroupModal" tabindex="-1" aria-labelledby="shareToGroupModalLabel" aria-hidden="true">
     <div class="modal-dialog">

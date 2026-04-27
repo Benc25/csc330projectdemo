@@ -581,3 +581,54 @@ h1, h2, h3 { margin: 0 0 10px; }
 .save-toggle:hover .save-toggle-switch {
     filter: brightness(0.95);
 }
+
+/* ── Quick Tips ──────────────────────────────────────────── */
+.instructions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.instructions-header h2 { margin: 0; }
+
+.instructions-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-icon-info {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    transition: background .15s ease;
+}
+.btn-icon-info:hover {
+    background: #dbe7ff;
+}
+
+.tip-count-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--primary);
+    color: white;
+    font-size: .65rem;
+    font-weight: 800;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}

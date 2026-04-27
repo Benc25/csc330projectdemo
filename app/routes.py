@@ -6,7 +6,8 @@ from app.forms import CreateRecipeForm, LoginForm, RegisterForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
-    Notification, Group, GroupMember, GroupMessage, GroupRecipe, SavedRecipe
+    Notification, Group, GroupMember, GroupMessage, GroupRecipe, SavedRecipe,
+    QuickTip
 )
 import csv
 from io import StringIO
@@ -322,6 +323,11 @@ def view_recipe(recipe_id):
 
     memberships = GroupMember.query.filter_by(userID=uid).all() if uid else []
 
+    quick_tips = QuickTip.query.filter_by(recipeID=recipe_id).order_by(QuickTip.dateCreated.desc()).all()
+    for t in quick_tips:
+        tip_user = User.query.get(t.userID)
+        t.author_name = f"{tip_user.firstName} {tip_user.lastName[0]}." if tip_user else "Anonymous"
+
     return render_template(
         'view_recipe.html',
         recipe=recipe,
@@ -338,6 +344,7 @@ def view_recipe(recipe_id):
         sort=sort,
         toast_notif=toast_notif,
         memberships=memberships,
+        quick_tips=quick_tips,
     )
 
 
@@ -377,6 +384,27 @@ def post_comment(recipe_id):
         session['toast_notification_id'] = new_notif.id
 
     db.session.commit()
+    return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+
+@app.route('/recipe/<int:recipe_id>/tips', methods=['POST'])
+@login_required
+def post_tip(recipe_id):
+    uid = current_user_id()
+    Recipe.query.get_or_404(recipe_id)
+
+    title = request.form.get('tip_title', '').strip()
+    content = request.form.get('tip_content', '').strip()
+
+    if title and content:
+        db.session.add(QuickTip(
+            recipeID=recipe_id,
+            userID=uid,
+            title=title,
+            content=content,
+        ))
+        db.session.commit()
+
     return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
 
