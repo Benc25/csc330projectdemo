@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Profile Settings | The Open Kitchen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+
+<section class="form-shell">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <article class="recipe-card mb-4" style="display: flex; align-items: center; gap: 20px;">
+        {% if user.avatar %}
+        <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}"
+             alt="Your profile picture"
+             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">
+        {% else %}
+        <div style="width: 90px; height: 90px; border-radius: 50%; background: var(--primary-light, #e8f0ff); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: var(--primary, #3a5fc8); flex-shrink: 0;">
+            {{ user.firstName[0] }}{{ user.lastName[0] }}
+        </div>
+        {% endif %}
+        <div>
+            <p style="margin: 0; font-weight: 600;">{{ user.firstName }} {{ user.lastName }}</p>
+            <p class="muted-small" style="margin: 2px 0 0 0;">{{ user.email }}</p>
+        </div>
+    </article>
+
+    <form method="POST" action="{{ url_for('profile_settings') }}" enctype="multipart/form-data" class="form-card">
+        {{ form.hidden_tag() }}
+        <div class="field-block">
+            <label>Profile Picture</label>
+            {{ form.avatar() }}
+            <p class="muted-small" style="margin-top: 6px;">Accepted formats: PNG, JPG, GIF, WebP. Max 16 MB.</p>
+        </div>
+        <div class="form-actions push-top">
+            {{ form.submit(class='btn btn-primary') }}
+        </div>
+    </form>
+</section>
+{% endblock %}

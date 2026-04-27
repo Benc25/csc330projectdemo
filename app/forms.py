@@ -1,7 +1,10 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, IntegerField, SelectField, SelectMultipleField, TextAreaField, BooleanField, SubmitField, PasswordField
 from wtforms.validators import DataRequired, Optional, NumberRange, Email, Length, EqualTo, ValidationError
 from app.models import User
+
+ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
 
 class CreateRecipeForm(FlaskForm):
     title = StringField('Recipe Name', validators=[DataRequired(message='Recipe name is required.')])
@@ -14,7 +17,12 @@ class CreateRecipeForm(FlaskForm):
     dietary_tags = SelectMultipleField('Dietary Tags', coerce=int, validators=[Optional()], choices=[])
     allergens = SelectMultipleField('Allergens', coerce=int, validators=[Optional()], choices=[])
     isPublic = BooleanField('Make this recipe public', default=True)
+    image = FileField('Recipe Photo', validators=[Optional(), FileAllowed(ALLOWED_IMAGE_EXTENSIONS, 'Images only.')])
     submit = SubmitField('Create Recipe')
+
+class ProfileSettingsForm(FlaskForm):
+    avatar = FileField('Profile Picture', validators=[Optional(), FileAllowed(ALLOWED_IMAGE_EXTENSIONS, 'Images only.')])
+    submit = SubmitField('Save Changes')
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(message='Email is required.'), Email(message='Invalid email address.')])

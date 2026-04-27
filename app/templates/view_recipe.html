@@ -5,6 +5,13 @@
 <a href="javascript:void(0)" onclick="goBack()" class="back-link">← Back</a>
  
 <section class="recipe-view-shell">
+    {% if recipe.image %}
+    <div style="margin-bottom: 20px;">
+        <img src="{{ url_for('static', filename='uploads/' + recipe.image) }}"
+             alt="{{ recipe.title }}"
+             style="width: 100%; max-height: 360px; object-fit: cover; border-radius: var(--radius-sm);">
+    </div>
+    {% endif %}
     <div class="recipe-hero">
         <div>
             <div class="pill-row push-bottom-small">
