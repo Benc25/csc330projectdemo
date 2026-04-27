@@ -17,6 +17,7 @@ class User(db.Model):
     preferMetric = db.Column(db.Boolean, default=False, nullable=False)
     disableNotifications = db.Column(db.Boolean, default=False, nullable=False)
     lastSeen = db.Column(db.DateTime, nullable=True, default=None)
+    doNotDisturb = db.Column(db.Boolean, default=False, nullable=False)
     recipes = db.relationship('Recipe', backref='author', lazy=True)
     def set_password(self, password):
         self.password = generate_password_hash(password)

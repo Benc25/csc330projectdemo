@@ -65,7 +65,7 @@
  
                 <!-- Profile Dropdown (ONLY IF LOGGED IN) -->
                 {% if session.get('user_id') %}
-                <div class="dropdown ms-2">
+                <div class="dropdown ms-2" style="position: relative;">
 
                     <button class="btn p-0 border-0 d-flex align-items-center justify-content-center"
                             type="button"
@@ -85,6 +85,7 @@
                         {% endif %}
 
                     </button>
+                    <span style="position: absolute; top: 1px; right: 1px; width: 11px; height: 11px; background: {{ '#f59e0b' if current_user and current_user.doNotDisturb else '#22c55e' }}; border-radius: 50%; border: 2px solid white; pointer-events: none; z-index: 10;"></span>
  
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
 
