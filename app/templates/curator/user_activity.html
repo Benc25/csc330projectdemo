@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}User Activity | The Open Kitchen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('curator_reports') }}" class="back-link">← Back to Reports</a>
+
+<div class="stats-panel" style="display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 32px;">
+
+    <div class="stat-card" style="flex: 1 1 180px; display: flex; flex-direction: column; align-items: center; padding: 2rem 1.5rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" style="color: var(--primary); margin-bottom: 12px;" class="bi bi-people-fill" viewBox="0 0 16 16">
+            <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>
+        </svg>
+        <span class="stat-number">{{ active_users | length }}</span>
+        <span class="stat-label">Active User Accounts</span>
+    </div>
+
+    <div class="stat-card" style="flex: 1 1 180px; display: flex; flex-direction: column; align-items: center; padding: 2rem 1.5rem;">
+        <span style="display: inline-block; width: 32px; height: 32px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 5px rgba(34,197,94,0.25); margin-bottom: 12px;"></span>
+        <span class="stat-number">{{ online_users | length }}</span>
+        <span class="stat-label">Currently Online</span>
+    </div>
+
+</div>
+
+<!-- Search -->
+<form method="GET" action="{{ url_for('curator_user_activity') }}" style="margin-bottom: 16px; display: flex; gap: 10px;">
+    <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name, email, or role…"
+           style="flex: 1; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: .9rem; background: var(--surface); color: var(--text);">
+    <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Search</button>
+    {% if search_query %}
+    <a href="{{ url_for('curator_user_activity') }}" class="btn btn-secondary">Clear</a>
+    {% endif %}
+</form>
+
+<!-- User table -->
+<div class="recipe-card" style="padding: 0; overflow: hidden;">
+    <table style="width: 100%; border-collapse: collapse; font-size: .9rem;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--line); background: var(--surface-alt, #f8f8f8);">
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600;">User</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Email</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Role</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Status</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Last Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in active_users %}
+            {% set is_online = u in online_users %}
+            <tr style="border-bottom: 1px solid var(--line);">
+                <td style="padding: 12px 16px;">
+                    <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" style="text-decoration: none; color: inherit; font-weight: 600;">
+                        {{ u.firstName }} {{ u.lastName }}
+                    </a>
+                </td>
+                <td style="padding: 12px 16px; color: var(--muted);">{{ u.email }}</td>
+                <td style="padding: 12px 16px;">
+                    <span class="mini-pill">{{ u.role }}</span>
+                </td>
+                <td style="padding: 12px 16px;">
+                    {% if is_online %}
+                    <span style="display: inline-flex; align-items: center; gap: 6px; color: #16a34a; font-weight: 600; font-size: .82rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+                        Online
+                    </span>
+                    {% else %}
+                    <span style="display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .82rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; display: inline-block;"></span>
+                        Offline
+                    </span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px 16px; color: var(--muted); font-size: .82rem;">
+                    {% if u.lastSeen %}
+                        {{ u.lastSeen.strftime('%b %d, %Y at %I:%M %p') }}
+                    {% else %}
+                        Never
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
