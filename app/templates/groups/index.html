@@ -42,21 +42,25 @@
 </section>
 
 {% if groups %}
-<div class="card-grid">
+<div style="display: flex; gap: 18px;">
     {% for group in groups %}
-    <a href="{{ url_for('view_group', group_id=group.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">{{ 'Leader' if group.leaderID == 1 else 'Member' }}</span>
-            </div>
-            <h3>{{ group.name }}</h3>
-            <p>{{ group.description or 'No description provided.' }}</p>
-            <div class="recipe-card-footer">
-                <span class="muted-small">Created {{ group.dateCreated.strftime('%b %d, %Y') }}</span>
-                <span>Open group →</span>
-            </div>
-        </article>
-    </a>
+    <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
+        <a href="{{ url_for('view_group', group_id=group.id) }}" class="recipe-card-link">
+            <article class="recipe-card" style="height: 180px;">
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ 'Leader' if group.leaderID == 1 else 'Member' }}</span>
+                    </div>
+                    <h3 style="font-size: .95rem; margin: 6px 0;">{{ group.name }}</h3>
+                    <p style="font-size: .85rem; flex-grow: 1;">{{ group.description or 'No description provided.' }}</p>
+                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                        <span class="muted-small">Created {{ group.dateCreated.strftime('%b %d, %Y') }}</span>
+                        <span>Open →</span>
+                    </div>
+                </div>
+            </article>
+        </a>
+    </div>
     {% endfor %}
 </div>
 {% else %}
@@ -79,36 +83,27 @@
 </section>
 
 {% if recipe_data %}
-<div class="card-grid">
+<div style="display: flex; gap: 18px;">
     {% for item in recipe_data %}
-    <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-        <article class="recipe-card">
-            <div class="recipe-card-top">
-                <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-            </div>
-            <h3>{{ item.recipe.title }}</h3>
-            <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-            <div class="pill-row">
-                <span class="pill">Serves {{ item.recipe.baseServings }}</span>
-                {% if item.recipe.prepTime %}<span class="pill">Prep {{ item.recipe.prepTime }} min</span>{% endif %}
-                {% if item.recipe.cookTime %}<span class="pill">Cook {{ item.recipe.cookTime }} min</span>{% endif %}
-            </div>
-            <div class="recipe-card-footer">
-                {% if item.avg_rating %}
-                <span class="card-stars">
-                    {% for i in range(1, 6) %}
-                        <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                    {% endfor %}
-                    <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                </span>
-                {% else %}
-                <span class="muted-small no-rating">No ratings yet</span>
+    <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card" style="height: 180px;">
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
                 {% endif %}
-                <span>Open recipe →</span>
-            </div>
-        </article>
-    </a>
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                    </div>
+                    <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
+                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                        <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
+                        <span>Open →</span>
+                    </div>
+                </div>
+            </article>
+        </a>
+    </div>
     {% endfor %}
 </div>
 {% else %}
@@ -128,44 +123,23 @@
 </section>
 
 {% if saved_recipes %}
-<div class="card-grid">
+<div style="display: flex; gap: 18px;">
     {% for item in saved_recipes %}
-    <div class="recipe-card-wrap">
+    <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-            <article class="recipe-card">
-                <div class="recipe-card-top">
-                    <span class="mini-pill">
-                        {{ item.category_names[0] if item.category_names else 'Recipe' }}
-                    </span>
-                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-                </div>
-
-                <h3>{{ item.recipe.title }}</h3>
-                <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-
-                <div class="pill-row">
-                    <span class="pill">Serves {{ item.recipe.baseServings }}</span>
-                    {% if item.recipe.prepTime %}
-                        <span class="pill">Prep {{ item.recipe.prepTime }} min</span>
-                    {% endif %}
-                    {% if item.recipe.cookTime %}
-                        <span class="pill">Cook {{ item.recipe.cookTime }} min</span>
-                    {% endif %}
-                </div>
-
-                <div class="recipe-card-footer">
-                    {% if item.avg_rating %}
-                    <span class="card-stars">
-                        {% for i in range(1, 6) %}
-                            <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                        {% endfor %}
-                        <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                    </span>
-                    {% else %}
-                    <span class="muted-small no-rating">No ratings yet</span>
-                    {% endif %}
-
-                    <span>Open recipe →</span>
+            <article class="recipe-card" style="height: 180px;">
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
+                {% endif %}
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                    </div>
+                    <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
+                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                        <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
+                        <span>Open →</span>
+                    </div>
                 </div>
             </article>
         </a>

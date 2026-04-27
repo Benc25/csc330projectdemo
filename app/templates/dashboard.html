@@ -95,44 +95,42 @@
         <p>A random selection from the kitchen.</p>
     </div>
 </section>
-<div class="row g-2">
+<div style="display: flex; gap: 18px;">
     {% for item in random_recipes %}
-    <div class="col-md-4 col-lg-2">
-        <div class="recipe-card-wrap">
-            <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-                <article class="recipe-card" style="padding: .75rem 1rem;">
-                    {% if item.recipe.image %}
-                    <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
-                    {% endif %}
-                    <div class="recipe-card-content">
-                        <div class="recipe-card-top">
-                            <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                        </div>
-                        <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
-                        <div class="recipe-card-footer" style="font-size: .8rem;">
-                            <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
-                            <span>Open →</span>
-                        </div>
+    <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card" style="height: 180px;">
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
+                {% endif %}
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
                     </div>
-                </article>
-            </a>
-            {% if user and user.id == item.recipe.authorID %}
-            <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
-                  class="delete-form"
-                  onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
-                <button type="submit" class="delete-btn" title="Delete recipe">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                </button>
-            </form>
-            {% endif %}
-        </div>
+                    <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
+                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                        <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
+                        <span>Open →</span>
+                    </div>
+                </div>
+            </article>
+        </a>
+        {% if user and user.id == item.recipe.authorID %}
+        <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
+              class="delete-form"
+              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
+            <button type="submit" class="delete-btn" title="Delete recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
 {% endif %}
- 
+
 <!-- Newest Recipes -->
 {% if newest %}
 <section class="section-head" style="margin-top: 36px;">
@@ -141,39 +139,37 @@
         <p>Just added to the Open Kitchen.</p>
     </div>
 </section>
-<div class="row g-2">
+<div style="display: flex; gap: 18px;">
     {% for item in newest %}
-    <div class="col-md-4 col-lg-2">
-        <div class="recipe-card-wrap">
-            <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-                <article class="recipe-card" style="padding: .75rem 1rem;">
-                    {% if item.recipe.image %}
-                    <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
-                    {% endif %}
-                    <div class="recipe-card-content">
-                        <div class="recipe-card-top">
-                            <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                        </div>
-                        <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
-                        <div class="recipe-card-footer" style="font-size: .8rem;">
-                            <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
-                            <span>Open →</span>
-                        </div>
+    <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
+        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
+            <article class="recipe-card" style="height: 180px;">
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
+                {% endif %}
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
                     </div>
-                </article>
-            </a>
-            {% if user and user.id == item.recipe.authorID %}
-            <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
-                  class="delete-form"
-                  onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
-                <button type="submit" class="delete-btn" title="Delete recipe">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                </button>
-            </form>
-            {% endif %}
-        </div>
+                    <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
+                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                        <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
+                        <span>Open →</span>
+                    </div>
+                </div>
+            </article>
+        </a>
+        {% if user and user.id == item.recipe.authorID %}
+        <form method="POST" action="{{ url_for('delete_recipe', recipe_id=item.recipe.id) }}"
+              class="delete-form"
+              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
+            <button type="submit" class="delete-btn" title="Delete recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </button>
+        </form>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
