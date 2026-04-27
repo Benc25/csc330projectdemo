@@ -81,20 +81,25 @@
     <div style="position: relative;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
             <article class="recipe-card popular-card">
-                <div class="recipe-card-top">
-                    <span class="mini-pill popular-badge">★ Top Rated</span>
-                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-                </div>
-                <h3>{{ item.recipe.title }}</h3>
-                <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
-                <div class="recipe-card-footer">
-                    <span class="card-stars">
-                        {% for i in range(1, 6) %}
-                        <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                        {% endfor %}
-                        <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                    </span>
-                    <span>Open →</span>
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
+                {% endif %}
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill popular-badge">★ Top Rated</span>
+                        <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                    </div>
+                    <h3>{{ item.recipe.title }}</h3>
+                    <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
+                    <div class="recipe-card-footer">
+                        <span class="card-stars">
+                            {% for i in range(1, 6) %}
+                            <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
+                            {% endfor %}
+                            <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
+                        </span>
+                        <span>Open →</span>
+                    </div>
                 </div>
             </article>
         </a>
@@ -123,15 +128,20 @@
     <div style="position: relative;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
             <article class="recipe-card">
-                <div class="recipe-card-top">
-                    <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                    <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-                </div>
-                <h3>{{ item.recipe.title }}</h3>
-                <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-                <div class="recipe-card-footer">
-                    <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
-                    <span>Open →</span>
+                {% if item.recipe.image %}
+                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
+                {% endif %}
+                <div class="recipe-card-content">
+                    <div class="recipe-card-top">
+                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
+                        <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
+                    </div>
+                    <h3>{{ item.recipe.title }}</h3>
+                    <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
+                    <div class="recipe-card-footer">
+                        <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
+                        <span>Open →</span>
+                    </div>
                 </div>
             </article>
         </a>

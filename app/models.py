@@ -13,6 +13,7 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, default='contributor')
     isActive = db.Column(db.Boolean, default=True)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    avatar = db.Column(db.String(255), nullable=True)
     recipes = db.relationship('Recipe', backref='author', lazy=True)
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -43,6 +44,7 @@ class Recipe(db.Model):
     baseServings = db.Column(db.Integer, nullable=False)
     prepTime = db.Column(db.Integer, nullable=True)
     cookTime = db.Column(db.Integer, nullable=True)
+    image = db.Column(db.String(255), nullable=True)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
     ingredients = db.relationship('Ingredient', backref='recipe', lazy=True, cascade='all, delete-orphan')

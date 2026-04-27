@@ -92,13 +92,18 @@
             <div class="recipe-card-wrap mb-2">
                 <a href="{{ url_for('view_recipe', recipe_id=gr.recipe.id) }}" class="recipe-card-link">
                     <article class="recipe-card">
-                        <div class="recipe-card-top">
-                            <span class="mini-pill">Shared</span>
-                        </div>
-                        <h3>{{ gr.recipe.title }}</h3>
-                        <div class="recipe-card-footer">
-                            <span class="muted-small">by {{ gr.sharedBy.firstName }} {{ gr.sharedBy.lastName[0] }}.</span>
-                            <span>Open →</span>
+                        {% if gr.recipe.image %}
+                        <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + gr.recipe.image) }}" alt="">
+                        {% endif %}
+                        <div class="recipe-card-content">
+                            <div class="recipe-card-top">
+                                <span class="mini-pill">Shared</span>
+                            </div>
+                            <h3>{{ gr.recipe.title }}</h3>
+                            <div class="recipe-card-footer">
+                                <span class="muted-small">by {{ gr.sharedBy.firstName }} {{ gr.sharedBy.lastName[0] }}.</span>
+                                <span>Open →</span>
+                            </div>
                         </div>
                     </article>
                 </a>

@@ -1,8 +1,9 @@
 from flask import render_template, request, redirect, url_for, session, flash
+import types, os, uuid
 from sqlalchemy import or_, func
 from app import app, db, mail
 from datetime import datetime
-from app.forms import CreateRecipeForm, LoginForm, RegisterForm
+from app.forms import CreateRecipeForm, LoginForm, RegisterForm, ProfileSettingsForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
@@ -14,6 +15,18 @@ from io import StringIO
 from flask import Response
 from flask_mail import Message
 from functools import wraps
+
+
+def save_upload(file_field):
+    """Save an uploaded image file and return the stored filename, or None."""
+    if not file_field or not file_field.filename:
+        return None
+    ext = file_field.filename.rsplit('.', 1)[-1].lower()
+    if ext not in app.config['ALLOWED_EXTENSIONS']:
+        return None
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file_field.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return filename
 
 
 def login_required(f):
@@ -32,6 +45,10 @@ def get_current_user():
 
 def current_user_id():
     return session.get('user_id')
+
+@app.context_processor
+def inject_current_user():
+    return {'current_user': get_current_user()}
 
 def send_welcome_email(user):
     try:
@@ -206,6 +223,23 @@ def dashboard():
                            stats=stats)
 
 
+@app.route('/profile/settings', methods=['GET', 'POST'])
+@login_required
+def profile_settings():
+    user = get_current_user()
+    form = ProfileSettingsForm()
+    if form.validate_on_submit():
+        new_avatar = save_upload(form.avatar.data)
+        if new_avatar:
+            user.avatar = new_avatar
+            db.session.commit()
+            flash('Profile picture updated!', 'success')
+        else:
+            flash('Please choose a valid image file.', 'error')
+        return redirect(url_for('profile_settings'))
+    return render_template('profile_settings.html', form=form, user=user)
+
+
 @app.route('/recipe/create', methods=['GET', 'POST'])
 @login_required
 def create_recipe():
@@ -267,6 +301,7 @@ def create_recipe():
                 baseServings=form.baseServings.data,
                 prepTime=form.prepTime.data or None,
                 cookTime=form.cookTime.data or None,
+                image=save_upload(form.image.data),
             )
             db.session.add(new_recipe)
             db.session.flush()
@@ -572,6 +607,9 @@ def edit_recipe(recipe_id):
             recipe.baseServings = form.baseServings.data
             recipe.prepTime = form.prepTime.data or None
             recipe.cookTime = form.cookTime.data or None
+            new_image = save_upload(form.image.data)
+            if new_image:
+                recipe.image = new_image
 
             Ingredient.query.filter_by(recipeID=recipe_id).delete()
             for name, quantity, unit_id in parsed_ingredients:
@@ -864,7 +902,16 @@ def curator_user_profile(user_id):
     if not user or user.role != 'curator':
         return redirect(url_for('dashboard'))
 
-    profile = User.query.get_or_404(user_id)
+    _profile = User.query.get_or_404(user_id)
+    profile = types.SimpleNamespace(
+        id=_profile.id,
+        firstName=_profile.firstName,
+        lastName=_profile.lastName,
+        email=_profile.email,
+        role=_profile.role,
+        dateCreated=_profile.dateCreated,
+        avatar=_profile.avatar,
+    )
     recipes = Recipe.query.filter_by(authorID=user_id).order_by(Recipe.dateCreated.desc()).all()
     memberships = GroupMember.query.filter_by(userID=user_id).all()
     messages = GroupMessage.query.filter_by(senderID=user_id).order_by(GroupMessage.dateSent.desc()).all()

@@ -66,38 +66,48 @@
                 <!-- Profile Dropdown (ONLY IF LOGGED IN) -->
                 {% if session.get('user_id') %}
                 <div class="dropdown ms-2">
- 
-                    <button class="btn btn-light dropdown-toggle d-flex align-items-center justify-content-center"
+
+                    <button class="btn p-0 border-0 d-flex align-items-center justify-content-center"
                             type="button"
                             id="profileDropdown"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
-                            style="width: 40px; height: 40px; border-radius: 50%;">
- 
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                             fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
-                            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z"/>
-                            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-                        </svg>
- 
+                            style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: transparent;">
+
+                        {% if current_user and current_user.avatar %}
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}"
+                             alt="Profile"
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                        {% else %}
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #e8f0ff; color: #3a5fc8; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;">
+                            {% if current_user %}{{ current_user.firstName[0] }}{{ current_user.lastName[0] }}{% else %}?{% endif %}
+                        </div>
+                        {% endif %}
+
                     </button>
  
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
- 
+
                         <li>
                             <a class="dropdown-item" href="{{ url_for('my_groups') }}">
                                 Dashboard
                             </a>
                         </li>
- 
+
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('profile_settings') }}">
+                                Profile Settings
+                            </a>
+                        </li>
+
                         <li><hr class="dropdown-divider"></li>
- 
+
                         <li>
                             <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
                                 Logout
                             </a>
                         </li>
- 
+
                     </ul>
  
                 </div>

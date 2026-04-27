@@ -167,11 +167,42 @@ h1, h2, h3 { margin: 0 0 10px; }
 .recipe-card-link { display: block; }
 .recipe-card {
     padding: 18px;
+    position: relative;
+    overflow: hidden;
     transition: transform .16s ease, box-shadow .16s ease;
 }
 .recipe-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 42px rgba(40, 62, 113, 0.16);
+}
+
+/* Image hover effect */
+.recipe-card-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    opacity: 0.15;
+    transition: opacity 0.4s ease;
+    z-index: 0;
+    pointer-events: none;
+    display: block;
+}
+.recipe-card-content {
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.recipe-card:has(.recipe-card-bg):hover .recipe-card-bg {
+    opacity: 1;
+}
+.recipe-card:has(.recipe-card-bg):hover .recipe-card-content {
+    opacity: 0;
 }
 .recipe-card-top,
 .content-grid {

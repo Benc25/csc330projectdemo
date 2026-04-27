@@ -21,7 +21,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('edit_recipe', recipe_id=recipe.id) if is_edit else url_for('create_recipe') }}" class="form-card">
+    <form method="POST" action="{{ url_for('edit_recipe', recipe_id=recipe.id) if is_edit else url_for('create_recipe') }}" class="form-card" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
 
         <div class="form-grid two">
@@ -43,6 +43,19 @@
             <div class="field-block span-2">
                 <label>Description</label>
                 {{ form.description(rows=3, placeholder="A short one-line summary of the dish") }}
+            </div>
+
+            <div class="field-block span-2">
+                <label>Recipe Photo (optional)</label>
+                {% if is_edit and recipe.image %}
+                <div style="margin-bottom: 8px;">
+                    <img src="{{ url_for('static', filename='uploads/' + recipe.image) }}"
+                         alt="Current recipe photo"
+                         style="max-height: 180px; border-radius: 8px; object-fit: cover;">
+                    <p class="muted-small" style="margin-top: 4px;">Upload a new photo to replace this one.</p>
+                </div>
+                {% endif %}
+                {{ form.image() }}
             </div>
         </div>
 
