@@ -1,0 +1,6 @@
+FLASK_APP=main.py
+FLASK_DEBUG=1
+SQLITE_DB=recipe.db
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=8080
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
