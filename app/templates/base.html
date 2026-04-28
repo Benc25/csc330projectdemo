@@ -9,6 +9,262 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- ═══ MAGIC POT WIDGET ═══ -->
+    <style>
+    /* ── Floating "in the pot" chips ── */
+    #mp-potlist {
+      position: fixed;
+      bottom: 136px; right: 24px;
+      background: #2a150a; border: 1.5px solid #5c3d2e;
+      border-radius: 12px; padding: 10px 12px;
+      width: 184px; z-index: 9000;
+      display: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,.55);
+      font-family: 'Segoe UI',system-ui,sans-serif;
+    }
+    #mp-potlist.mp-show { display: block; }
+    .mp-potlist-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.2px;
+      color: #f5a623; margin-bottom: 7px;
+    }
+    .mp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .mp-chip {
+      background: #3d2215; border: 1px solid #5c3d2e;
+      border-radius: 14px; padding: 2px 8px;
+      font-size: 10px; color: #f5e6d3;
+      display: flex; align-items: center; gap: 4px;
+      cursor: pointer;
+    }
+    .mp-chip:hover { background: #5c3d2e; }
+    .mp-chip-x { color: #c4956a; font-size: 10px; }
+
+    /* ── Pot button ── */
+    #mp-pot-wrap {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 9001;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+    }
+    .mp-pot-tip {
+      background: #2d1810; border: 1px solid #5c3d2e;
+      border-radius: 8px; padding: 5px 11px;
+      font-size: 11px; color: #c4956a;
+      white-space: nowrap;
+      opacity: 0; transform: translateY(4px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      font-family: 'Segoe UI',system-ui,sans-serif;
+    }
+    #mp-pot-wrap:hover .mp-pot-tip { opacity: 1; transform: translateY(0); }
+
+    #mp-pot-btn {
+      width: 84px; height: 84px;
+      background: radial-gradient(circle at 35% 35%, #7c4a2d, #3d1c0a);
+      border: 3px solid #c4956a; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative;
+      transition: transform .25s, border-color .25s, box-shadow .25s;
+      box-shadow: 0 8px 28px rgba(0,0,0,.5);
+    }
+    #mp-pot-btn:hover { transform: scale(1.06); border-color: #f5a623; box-shadow: 0 8px 28px rgba(0,0,0,.5),0 0 22px rgba(245,166,35,.35); }
+    #mp-pot-btn.mp-over { border-color: #f5a623; box-shadow: 0 8px 28px rgba(0,0,0,.5),0 0 36px rgba(245,166,35,.65); transform: scale(1.1); }
+    #mp-pot-btn.mp-has { animation: mpPulse 2.4s ease-in-out infinite; }
+    @keyframes mpPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+    #mp-pot-btn.mp-flash { animation: mpFlash .35s ease-out forwards; }
+    @keyframes mpFlash { 0%{box-shadow:0 8px 28px rgba(0,0,0,.5),0 0 50px rgba(245,166,35,.9);transform:scale(1.12)} 100%{box-shadow:0 8px 28px rgba(0,0,0,.5);transform:scale(1)} }
+
+    .mp-pot-icon { font-size: 38px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+    #mp-badge {
+      position: absolute; top: -5px; right: -5px;
+      background: #f5a623; color: #1a0f0a;
+      border-radius: 50%; width: 23px; height: 23px;
+      display: none; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800;
+      border: 2px solid white;
+      font-family: 'Segoe UI',system-ui,sans-serif;
+    }
+    #mp-badge.mp-show { display: flex; }
+
+    .mp-steam-wrap {
+      position: absolute; top: -16px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 5px;
+      opacity: 0; transition: opacity .4s;
+    }
+    #mp-pot-btn.mp-has .mp-steam-wrap { opacity: 1; }
+    .mp-steam-p {
+      width: 4px; height: 12px;
+      background: rgba(255,255,255,.22); border-radius: 2px;
+      animation: mpSteam 1.6s ease-in-out infinite;
+    }
+    .mp-steam-p:nth-child(2){animation-delay:.3s}
+    .mp-steam-p:nth-child(3){animation-delay:.6s}
+    @keyframes mpSteam{0%{opacity:0;transform:translateY(0) scaleX(1)}50%{opacity:.5}100%{opacity:0;transform:translateY(-14px) scaleX(1.6)}}
+
+    /* ── Drag ghost ── */
+    #mp-ghost {
+      position: fixed; pointer-events: none; z-index: 9999;
+      background: #3d2215; border: 2px solid #f5a623; border-radius: 9px;
+      padding: 7px 10px; display: none;
+      flex-direction: column; align-items: center; gap: 3px;
+      transform: translate(-50%,-50%);
+      box-shadow: 0 4px 18px rgba(0,0,0,.55);
+      font-family: 'Segoe UI',system-ui,sans-serif;
+    }
+    #mp-ghost.mp-show { display: flex; }
+    #mp-ghost-em { display: none; }
+    #mp-ghost-nm { font-size: 11px; color: #c4956a; font-weight: 600; }
+
+    /* ── Recipe modal ── */
+    #mp-modal {
+      position: fixed; inset: 0;
+      background: rgba(8,3,1,.88); backdrop-filter: blur(5px);
+      z-index: 9050; display: none;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #mp-modal.mp-show { display: flex; }
+    .mp-rcard {
+      background: linear-gradient(160deg,#231208,#1a0f0a);
+      border: 2px solid #5c3d2e; border-radius: 20px;
+      padding: 34px 36px 26px; max-width: 560px; width: 100%;
+      max-height: 88vh; overflow-y: auto; position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,.8);
+      animation: mpSlideUp .25s ease-out;
+      font-family: 'Segoe UI',system-ui,sans-serif;
+    }
+    @keyframes mpSlideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    .mp-rcard::-webkit-scrollbar{width:4px}
+    .mp-rcard::-webkit-scrollbar-track{background:#1a0f0a}
+    .mp-rcard::-webkit-scrollbar-thumb{background:#5c3d2e;border-radius:3px}
+    .mp-close-x {
+      position: absolute; top: 13px; right: 13px;
+      background: #3d1c0a; border: 1px solid #5c3d2e; color: #c4956a;
+      border-radius: 8px; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 14px; transition: background .15s, color .15s;
+    }
+    .mp-close-x:hover{background:#5c3d2e;color:#f5e6d3}
+    .mp-r-icon{font-size:48px;text-align:center;margin-bottom:9px}
+    .mp-r-title{font-size:24px;font-weight:800;color:#f5a623;text-align:center;margin-bottom:5px}
+    .mp-r-sub{font-size:12.5px;color:#c4956a;text-align:center;margin-bottom:20px}
+    .mp-r-meta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+    .mp-r-chip{background:#2d1810;border:1px solid #5c3d2e;border-radius:20px;padding:4px 12px;font-size:11.5px;color:#c4956a}
+    .mp-r-sec{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#f5a623;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #5c3d2e}
+    .mp-r-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+    .mp-r-tag{background:#2d1810;border:1px solid #5c3d2e;border-radius:20px;padding:3px 10px;font-size:11.5px;color:#f5e6d3}
+    .mp-r-steps{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:22px;padding:0}
+    .mp-r-step{display:flex;gap:12px;align-items:flex-start}
+    .mp-r-stepn{background:#f5a623;color:#1a0f0a;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:2px}
+    .mp-r-stept{font-size:13.5px;color:#f5e6d3;line-height:1.65}
+    .mp-tip-box{background:#2a1508;border:1px solid #f5a623;border-radius:10px;padding:13px 16px;display:flex;gap:10px;align-items:flex-start;margin-bottom:20px}
+    .mp-tip-ic{font-size:17px;flex-shrink:0}
+    .mp-tip-tx{font-size:12px;color:#c4956a;line-height:1.65}
+    .mp-r-clearbtn{width:100%;padding:9px;background:#3d1c0a;border:1.5px solid #5c3d2e;color:#c4956a;border-radius:9px;font-size:13px;cursor:pointer;transition:background .15s,color .15s;font-family:'Segoe UI',system-ui,sans-serif}
+    .mp-r-clearbtn:hover{background:#5c3d2e;color:#f5e6d3}
+
+    /* ── Input view ── */
+    .mp-comment-block { margin: 16px 0 18px; }
+    .mp-comment-label { font-size: 11px; font-weight: 700; color: #c4956a; text-transform: uppercase; letter-spacing: 1.2px; display: block; margin-bottom: 8px; font-family:'Segoe UI',system-ui,sans-serif; }
+    .mp-comment-label span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #5c3d2e; }
+    #mp-comment {
+      width: 100%; background: #2d1810;
+      border: 1.5px solid #5c3d2e; border-radius: 10px;
+      color: #f5e6d3; padding: 10px 13px;
+      font-size: 13px; font-family: 'Segoe UI', system-ui, sans-serif;
+      resize: vertical; min-height: 82px; outline: none;
+      transition: border-color .15s;
+      box-sizing: border-box;
+    }
+    #mp-comment:focus { border-color: #f5a623; }
+    #mp-comment::placeholder { color: #4a2e1a; }
+
+    /* ── Cook button ── */
+    .mp-cook-btn {
+      width: 100%; padding: 13px;
+      background: #f5a623; border: none; border-radius: 10px;
+      color: #1a0f0a; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif;
+      transition: background .15s, transform .1s;
+      letter-spacing: .3px;
+    }
+    .mp-cook-btn:hover { background: #e09510; transform: translateY(-1px); }
+    .mp-cook-btn:active { transform: none; }
+    .mp-cook-btn:disabled { background: #5c3d2e; color: #3d2215; cursor: not-allowed; transform: none; }
+
+    /* ── Loading view ── */
+    #mp-view-loading { text-align: center; padding: 44px 0; }
+    .mp-spinner {
+      width: 46px; height: 46px;
+      border: 4px solid #3d2215; border-top-color: #f5a623;
+      border-radius: 50%; animation: mpSpin 0.9s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes mpSpin { to { transform: rotate(360deg); } }
+    .mp-loading-txt { color: #c4956a; font-size: 15px; font-family:'Segoe UI',system-ui,sans-serif; }
+    .mp-loading-sub { color: #5c3d2e; font-size: 12px; margin-top: 6px; font-family:'Segoe UI',system-ui,sans-serif; }
+
+    /* ── Recipe prose (Claude's output) ── */
+    .mp-recipe-prose { font-family: 'Segoe UI', system-ui, sans-serif; color: #f5e6d3; line-height: 1.7; margin-bottom: 20px; }
+    .mp-recipe-prose h1 { font-size: 22px; font-weight: 800; color: #f5a623; margin: 0 0 8px; line-height: 1.2; }
+    .mp-recipe-prose h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #f5a623; margin: 22px 0 9px; padding-bottom: 5px; border-bottom: 1px solid #5c3d2e; }
+    .mp-recipe-prose h3 { font-size: 14px; font-weight: 700; color: #f5e6d3; margin: 14px 0 6px; }
+    .mp-recipe-prose p { font-size: 13px; color: #c4956a; margin: 0 0 10px; }
+    .mp-recipe-prose strong { color: #f5e6d3; font-weight: 600; }
+    .mp-recipe-prose ul, .mp-recipe-prose ol { padding-left: 18px; margin: 0 0 14px; }
+    .mp-recipe-prose li { font-size: 13.5px; color: #f5e6d3; margin-bottom: 6px; line-height: 1.65; }
+    .mp-recipe-prose hr { border: none; border-top: 1px solid #3d2215; margin: 18px 0; }
+    .mp-recipe-prose blockquote { border-left: 3px solid #f5a623; margin: 0 0 14px 0; padding: 6px 14px; color: #c4956a; font-style: italic; background: #2d1810; border-radius: 0 8px 8px 0; }
+
+    /* ── Publish button ── */
+    .mp-publish-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg,#2e7d32,#388e3c);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family:'Segoe UI',system-ui,sans-serif;
+      transition: background .2s, transform .15s;
+      margin-bottom: 10px;
+    }
+    .mp-publish-btn:hover { background: linear-gradient(135deg,#388e3c,#43a047); transform: translateY(-1px); }
+    .mp-publish-btn:active { transform: none; }
+    .mp-publish-btn:disabled { background: #2a3d2a; color: #4a6a4a; cursor: not-allowed; transform: none; }
+    .mp-publish-success {
+      background: #1b3a1f; border: 1.5px solid #4caf50; border-radius: 10px;
+      padding: 14px 18px; color: #a5d6a7; font-size: 13px;
+      font-family:'Segoe UI',system-ui,sans-serif; margin-bottom: 12px; line-height: 1.6;
+    }
+    .mp-publish-success a { color: #81c784; font-weight: 700; }
+
+    /* ── Back button ── */
+    .mp-back-btn {
+      width: 100%; padding: 9px;
+      background: transparent; border: 1.5px solid #5c3d2e;
+      color: #c4956a; border-radius: 9px; font-size: 13px;
+      cursor: pointer; margin-bottom: 8px;
+      transition: background .15s, color .15s;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    .mp-back-btn:hover { background: #2d1810; color: #f5e6d3; }
+
+    /* ── Error state ── */
+    .mp-error-box { background: #3d1010; border: 1.5px solid #e05050; border-radius: 10px; padding: 16px 18px; color: #ffaaaa; font-size: 13px; font-family:'Segoe UI',system-ui,sans-serif; margin-bottom: 16px; line-height: 1.6; }
+
+    /* ── Recipe-page draggable rows ── */
+    tr.mp-ing-row { cursor: grab; }
+    tr.mp-ing-row:hover td:first-child::before {
+      content: '⠿ ';
+      color: #f5a623;
+      font-size: .9em;
+    }
+    tr.mp-ing-row:hover { background: rgba(245,166,35,.06) !important; }
+    tr.mp-ing-row.mp-added-row td:first-child::after {
+      content: ' ✓';
+      color: #f5a623;
+      font-size: .8em;
+    }
+    </style>
 </head>
 <body>
  
@@ -202,7 +458,72 @@
     </div>
     {% endif %}
  
+    <!-- ═══ MAGIC POT WIDGET HTML ═══ -->
+
+    <!-- Floating pot list -->
+    <div id="mp-potlist">
+      <div class="mp-potlist-title">In the pot:</div>
+      <div class="mp-chips" id="mp-chips"></div>
+    </div>
+
+    <!-- Pot button -->
+    <div id="mp-pot-wrap">
+      <div class="mp-pot-tip" id="mp-pot-tip">Open a recipe and drag ingredients in!</div>
+      <div id="mp-pot-btn">
+        <div class="mp-steam-wrap">
+          <div class="mp-steam-p"></div>
+          <div class="mp-steam-p"></div>
+          <div class="mp-steam-p"></div>
+        </div>
+        <span class="mp-pot-icon">🍲</span>
+        <div id="mp-badge"></div>
+      </div>
+    </div>
+
+    <!-- Drag ghost -->
+    <div id="mp-ghost"><span id="mp-ghost-em"></span><span id="mp-ghost-nm"></span></div>
+
+    <!-- Recipe modal -->
+    <div id="mp-modal">
+      <div class="mp-rcard">
+        <button class="mp-close-x" id="mp-modal-close">✕</button>
+
+        <!-- View 1: input -->
+        <div id="mp-view-input">
+          <h2 class="mp-r-title">What shall we cook?</h2>
+          <p class="mp-r-sub" id="mp-input-sub"></p>
+          <div class="mp-r-tags" id="mp-input-tags"></div>
+          <div class="mp-comment-block">
+            <label class="mp-comment-label" for="mp-comment">
+              Any preferences? <span>(optional)</span>
+            </label>
+            <textarea id="mp-comment"
+              placeholder="e.g. Make it spicy · serve 6 people · I'm lactose intolerant · quick weeknight dinner · surprise me..."></textarea>
+          </div>
+          <button class="mp-cook-btn" id="mp-cook-btn">Cook with Claude</button>
+        </div>
+
+        <!-- View 2: loading -->
+        <div id="mp-view-loading">
+          <div class="mp-spinner"></div>
+          <p class="mp-loading-txt">Claude is crafting your recipe...</p>
+          <p class="mp-loading-sub">This usually takes 5–10 seconds</p>
+        </div>
+
+        <!-- View 3: recipe output -->
+        <div id="mp-view-recipe">
+          <div id="mp-recipe-out" class="mp-recipe-prose"></div>
+          <div id="mp-publish-feedback"></div>
+          <button class="mp-publish-btn" id="mp-publish-btn">Publish Recipe to My Kitchen</button>
+          <button class="mp-back-btn" id="mp-back-btn">← Change preferences</button>
+          <button class="mp-r-clearbtn" id="mp-clearbtn">Clear Pot &amp; Start Over</button>
+        </div>
+
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script>
         function showNotificationToast(title, message, time = "just now") {
             const toastHTML = `
@@ -273,6 +594,331 @@
                 });
             }
         });
+    </script>
+    <!-- ═══ MAGIC POT WIDGET JS ═══ -->
+    <script>
+    (function () {
+      'use strict';
+
+      /* ── State ── */
+      let pot            = [];    // { name, type }
+      let active         = false;
+      let payload        = null;
+      let lastMarkdown   = '';    // raw Claude response for publishing
+      const mpLoggedIn   = {{ 'true' if session.get('user_id') else 'false' }};
+
+      /* ── Elements ── */
+      const potBtn         = document.getElementById('mp-pot-btn');
+      const badge          = document.getElementById('mp-badge');
+      const potTip         = document.getElementById('mp-pot-tip');
+      const potList        = document.getElementById('mp-potlist');
+      const chipsWrap      = document.getElementById('mp-chips');
+      const modal          = document.getElementById('mp-modal');
+      const modalClose     = document.getElementById('mp-modal-close');
+      const clearBtn       = document.getElementById('mp-clearbtn');
+      const ghost          = document.getElementById('mp-ghost');
+      const ghostNm        = document.getElementById('mp-ghost-nm');
+      const publishBtn     = document.getElementById('mp-publish-btn');
+      const publishFeedback= document.getElementById('mp-publish-feedback');
+
+      /* ── Drag from recipe page ingredient rows (event delegation) ── */
+      document.addEventListener('dragstart', e => {
+        const row = e.target.closest('tr.mp-ing-row');
+        if (!row) return;
+        payload = {
+          name: row.dataset.ingName,
+          type: row.dataset.ingType || guessType(row.dataset.ingName)
+        };
+        ghostNm.textContent = payload.name;
+        ghost.classList.add('mp-show');
+        const blank = new Image();
+        blank.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        e.dataTransfer.setDragImage(blank, 0, 0);
+        e.dataTransfer.effectAllowed = 'copy';
+        active = true;
+      });
+      document.addEventListener('dragend', e => {
+        if (!e.target.closest('tr.mp-ing-row')) return;
+        ghost.classList.remove('mp-show');
+        potBtn.classList.remove('mp-over');
+        active = false; payload = null;
+      });
+
+      /* ── Mouse follow for ghost ── */
+      document.addEventListener('mousemove', e => {
+        if (!active) return;
+        ghost.style.left = e.clientX + 'px';
+        ghost.style.top  = e.clientY + 'px';
+      });
+
+      /* ── Pot drop target ── */
+      potBtn.addEventListener('dragover', e => {
+        e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+        potBtn.classList.add('mp-over');
+      });
+      potBtn.addEventListener('dragleave', () => potBtn.classList.remove('mp-over'));
+      potBtn.addEventListener('drop', e => {
+        e.preventDefault();
+        potBtn.classList.remove('mp-over');
+        if (payload) addToPot(payload);
+      });
+
+      /* ── Add to pot ── */
+      function addToPot(item) {
+        if (pot.some(i => i.name === item.name)) {
+          potBtn.style.borderColor = '#e05050';
+          setTimeout(() => { potBtn.style.borderColor = ''; }, 500);
+          return;
+        }
+        pot.push({ ...item });
+        document.querySelectorAll('tr.mp-ing-row').forEach(r => {
+          if (r.dataset.ingName === item.name) r.classList.add('mp-added-row');
+        });
+        potBtn.classList.remove('mp-flash');
+        void potBtn.offsetWidth;
+        potBtn.classList.add('mp-flash');
+        refreshUI();
+      }
+
+      /* ── Refresh UI ── */
+      function refreshUI() {
+        const n = pot.length;
+        if (n > 0) {
+          badge.textContent = n; badge.classList.add('mp-show');
+          potBtn.classList.add('mp-has');
+          potTip.textContent = n + ' ingredient' + (n > 1 ? 's' : '') + ' — click to cook!';
+          potList.classList.add('mp-show');
+          chipsWrap.innerHTML = pot.map(i =>
+            `<div class="mp-chip" data-name="${i.name}" title="Remove">${i.name} <span class="mp-chip-x">×</span></div>`
+          ).join('');
+        } else {
+          badge.classList.remove('mp-show');
+          potBtn.classList.remove('mp-has');
+          potTip.textContent = 'Open a recipe and drag ingredients in!';
+          potList.classList.remove('mp-show');
+          chipsWrap.innerHTML = '';
+          document.querySelectorAll('tr.mp-ing-row').forEach(r => r.classList.remove('mp-added-row'));
+        }
+      }
+
+      /* ── Remove ingredient via chip click ── */
+      chipsWrap.addEventListener('click', e => {
+        const chip = e.target.closest('.mp-chip');
+        if (!chip) return;
+        pot = pot.filter(i => i.name !== chip.dataset.name);
+        document.querySelectorAll('tr.mp-ing-row').forEach(r => {
+          if (r.dataset.ingName === chip.dataset.name) r.classList.remove('mp-added-row');
+        });
+        refreshUI();
+      });
+
+      /* ── View switcher ── */
+      const viewInput   = document.getElementById('mp-view-input');
+      const viewLoading = document.getElementById('mp-view-loading');
+      const viewRecipe  = document.getElementById('mp-view-recipe');
+      const cookBtn     = document.getElementById('mp-cook-btn');
+      const backBtn     = document.getElementById('mp-back-btn');
+      const inputTags   = document.getElementById('mp-input-tags');
+      const inputSub    = document.getElementById('mp-input-sub');
+      const commentBox  = document.getElementById('mp-comment');
+      const recipeOut   = document.getElementById('mp-recipe-out');
+
+      function showView(name) {
+        viewInput.style.display   = name === 'input'   ? '' : 'none';
+        viewLoading.style.display = name === 'loading' ? '' : 'none';
+        viewRecipe.style.display  = name === 'recipe'  ? '' : 'none';
+      }
+      showView('input'); // default hidden state
+
+      /* ── Open recipe modal ── */
+      potBtn.addEventListener('click', () => {
+        if (pot.length === 0) {
+          potBtn.style.transform = 'rotate(-6deg)';
+          setTimeout(() => { potBtn.style.transform = 'rotate(6deg)'; }, 100);
+          setTimeout(() => { potBtn.style.transform = ''; }, 200);
+          return;
+        }
+        // Populate ingredient chips in input view
+        inputTags.innerHTML = pot.map(i =>
+          `<div class="mp-r-tag">${i.name}</div>`
+        ).join('');
+        const n = pot.length;
+        inputSub.textContent = n + ' ingredient' + (n !== 1 ? 's' : '') + ' in the pot';
+        commentBox.value = '';
+        lastMarkdown = '';
+        publishFeedback.innerHTML = '';
+        publishBtn.disabled = false;
+        publishBtn.textContent = 'Publish Recipe to My Kitchen';
+        // Clear any previous error
+        const errBox = document.getElementById('mp-error-box');
+        if (errBox) errBox.remove();
+        showView('input');
+        modal.classList.add('mp-show');
+      });
+
+      /* ── Cook button → call Claude API ── */
+      cookBtn.addEventListener('click', async () => {
+        const comment = commentBox.value.trim();
+        const ingredients = pot.map(i => i.name);
+
+        // Remove any old error
+        const oldErr = document.getElementById('mp-error-box');
+        if (oldErr) oldErr.remove();
+
+        showView('loading');
+        cookBtn.disabled = true;
+
+        try {
+          const res = await fetch('/api/generate-recipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ingredients, comment })
+          });
+          const data = await res.json();
+
+          if (!res.ok || data.error) {
+            showView('input');
+            const err = document.createElement('div');
+            err.id = 'mp-error-box';
+            err.style.cssText = 'background:#5c1a1a;border:1px solid #e05050;border-radius:10px;padding:12px 16px;margin-bottom:14px;color:#ffaaaa;font-size:13px;font-family:Segoe UI,system-ui,sans-serif;';
+            err.textContent = data.error || 'Something went wrong. Please try again.';
+            cookBtn.before(err);
+          } else {
+            lastMarkdown = data.recipe;
+            recipeOut.innerHTML = (typeof marked !== 'undefined')
+              ? marked.parse(data.recipe)
+              : data.recipe.replace(/\n/g, '<br>');
+            // Reset publish button for this new recipe
+            publishFeedback.innerHTML = '';
+            publishBtn.disabled = false;
+            publishBtn.textContent = 'Publish Recipe to My Kitchen';
+            publishBtn.style.display = mpLoggedIn ? '' : 'none';
+            // Scroll card to top so recipe starts from the beginning
+            recipeOut.closest('.mp-rcard').scrollTop = 0;
+            showView('recipe');
+          }
+        } catch (ex) {
+          showView('input');
+          const err = document.createElement('div');
+          err.id = 'mp-error-box';
+          err.style.cssText = 'background:#5c1a1a;border:1px solid #e05050;border-radius:10px;padding:12px 16px;margin-bottom:14px;color:#ffaaaa;font-size:13px;font-family:Segoe UI,system-ui,sans-serif;';
+          err.textContent = 'Network error: ' + ex.message;
+          cookBtn.before(err);
+        } finally {
+          cookBtn.disabled = false;
+        }
+      });
+
+      /* ── Back button ── */
+      backBtn.addEventListener('click', () => {
+        const errBox = document.getElementById('mp-error-box');
+        if (errBox) errBox.remove();
+        showView('input');
+      });
+
+      /* ── Publish button ── */
+      publishBtn.addEventListener('click', async () => {
+        if (!mpLoggedIn) {
+          publishFeedback.innerHTML = '<div class="mp-error-box">You need to be logged in to publish. <a href="/login" style="color:#ffaaaa;font-weight:700;">Log in</a></div>';
+          return;
+        }
+        if (!lastMarkdown) {
+          publishFeedback.innerHTML = '<div class="mp-error-box">No recipe to publish yet.</div>';
+          return;
+        }
+
+        // ── Parse title from first # heading ──
+        const titleMatch = lastMarkdown.match(/^#\s+(.+)$/m);
+        const title = titleMatch ? titleMatch[1].trim() : 'Claude\'s Custom Recipe';
+
+        // ── Parse description (cuisine style line) ──
+        const descMatch = lastMarkdown.match(/\*\*Cuisine style:\*\*\s*([^\n*]+)/i);
+        const description = descMatch ? descMatch[1].trim() : null;
+
+        // ── Parse prep/cook time and servings ──
+        const prepMatch  = lastMarkdown.match(/\*\*Prep time:\*\*\s*(\d+)/i);
+        const cookMatch  = lastMarkdown.match(/\*\*Cook time:\*\*\s*(\d+)/i);
+        const servMatch  = lastMarkdown.match(/\*\*Serves:\*\*\s*(\d+)/i);
+        const prepTime   = prepMatch  ? parseInt(prepMatch[1])  : null;
+        const cookTime   = cookMatch  ? parseInt(cookMatch[1])  : null;
+        const servings   = servMatch  ? parseInt(servMatch[1])  : 2;
+
+        // ── Build ingredient list from the pot ──
+        const ingredients = pot.map(i => ({ name: i.name.slice(0, 32), quantity: 1, unitID: 1 }));
+
+        publishBtn.disabled = true;
+        publishBtn.textContent = 'Publishing…';
+        publishFeedback.innerHTML = '';
+
+        try {
+          const res  = await fetch('/api/publish-recipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description, instructions: lastMarkdown, ingredients, servings, prepTime, cookTime })
+          });
+          const data = await res.json();
+
+          if (res.status === 409) {
+            // Duplicate — offer a link to the existing one
+            publishFeedback.innerHTML =
+              `<div class="mp-publish-success">${data.error} <a href="${data.url}">View it here →</a></div>`;
+            publishBtn.disabled = false;
+            publishBtn.textContent = 'Publish Recipe to My Kitchen';
+          } else if (!res.ok || data.error) {
+            publishFeedback.innerHTML = `<div class="mp-error-box">${data.error || 'Publish failed. Please try again.'}</div>`;
+            publishBtn.disabled = false;
+            publishBtn.textContent = 'Publish Recipe to My Kitchen';
+          } else {
+            publishFeedback.innerHTML =
+              `<div class="mp-publish-success">Recipe published! <a href="${data.url}">View "${title}" →</a></div>`;
+            publishBtn.textContent = 'Published!';
+          }
+        } catch (ex) {
+          publishFeedback.innerHTML = `<div class="mp-error-box">Network error: ${ex.message}</div>`;
+          publishBtn.disabled = false;
+          publishBtn.textContent = 'Publish Recipe to My Kitchen';
+        }
+      });
+
+      modalClose.addEventListener('click', () => modal.classList.remove('mp-show'));
+      modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('mp-show'); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.classList.remove('mp-show'); });
+
+      clearBtn.addEventListener('click', () => {
+        pot = []; refreshUI(); modal.classList.remove('mp-show');
+      });
+
+      /* ── Guess ingredient type from name ── */
+      function guessType(n) {
+        n = (n || '').toLowerCase();
+        const proteins  = ['chicken','beef','salmon','tuna','fish','shrimp','prawn','pork','ham','bacon','egg','tofu','lamb','turkey'];
+        const vegs      = ['onion','garlic','tomato','pepper','broccoli','spinach','kale','mushroom','carrot','potato','zucchini','courgette','corn','eggplant','aubergine','lettuce','cabbage','celery','leek','asparagus','artichoke'];
+        const grains    = ['rice','pasta','noodle','bread','flour','quinoa','oat','tortilla','couscous','barley'];
+        const dairy     = ['cheese','butter','cream','milk','yogurt','parmesan','mozzarella','cheddar'];
+        const herbs     = ['basil','cilantro','coriander','thyme','rosemary','parsley','oregano','sage','mint','dill','tarragon'];
+        const spices    = ['cumin','turmeric','paprika','chili','ginger','cinnamon','nutmeg','cardamom','clove','star anise','saffron','cayenne'];
+        if (proteins.some(x => n.includes(x)))  return 'protein';
+        if (vegs.some(x => n.includes(x)))       return 'vegetable';
+        if (grains.some(x => n.includes(x)))     return 'grain';
+        if (dairy.some(x => n.includes(x)))      return 'dairy';
+        if (herbs.some(x => n.includes(x)))      return 'herb';
+        if (spices.some(x => n.includes(x)))     return 'spice';
+        return 'pantry';
+      }
+
+      /* ── Make recipe-page ingredient rows draggable ── */
+      document.querySelectorAll('.ingredient-table.view-mode tbody tr').forEach(row => {
+        const td = row.querySelector('td');
+        if (!td) return;
+        const ingName = td.textContent.trim();
+        row.classList.add('mp-ing-row');
+        row.setAttribute('draggable', 'true');
+        row.dataset.ingName = ingName;
+        row.dataset.ingType = guessType(ingName);
+        row.title = `Drag "${ingName}" into the pot`;
+      });
+
+    })();
     </script>
 </body>
 </html>

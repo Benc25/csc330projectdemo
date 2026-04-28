@@ -402,6 +402,15 @@ h1, h2, h3 { margin: 0 0 10px; }
 .popular-card { border-color: #f4c15d; }
 .popular-badge { background: #fff3d4 !important; color: #7a5b13 !important; }
 
+/* User-owned card accents */
+.my-card { border-color: #5cb87a; }   /* green outline for user's own random recipes */
+.my-popular-card {                      /* top/left gold + bottom/right green for user's own top recipes */
+    border-top-color:    #f4c15d;
+    border-left-color:   #f4c15d;
+    border-bottom-color: #5cb87a;
+    border-right-color:  #5cb87a;
+}
+
 /* ── Comments Section ────────────────────────────────────── */
 .comments-header {
     display: flex;

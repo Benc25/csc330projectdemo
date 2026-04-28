@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 import types, os, uuid
 from sqlalchemy import or_, func
 from app import app, db, mail
@@ -1343,3 +1343,145 @@ def curator_delete_recipe(recipe_id):
     db.session.commit()
     flash(f'Recipe "{recipe.title}" has been deleted.', 'success')
     return redirect(url_for('curator_dashboard'))
+
+# ─────────────────────────────────────────────
+# Magic Pot — Claude Recipe Generation
+# ─────────────────────────────────────────────
+@app.route('/api/generate-recipe', methods=['POST'])
+def generate_recipe_api():
+    """
+    Accepts JSON: { ingredients: ["Chicken", "Garlic", ...], comment: "make it spicy" }
+    Returns JSON: { recipe: "<markdown string>" }
+    """
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key or api_key == 'your-api-key-here':
+        return jsonify({'error': 'ANTHROPIC_API_KEY is not configured. Add it to your .flaskenv file.'}), 500
+
+    data        = request.get_json(silent=True) or {}
+    ingredients = data.get('ingredients', [])
+    comment     = data.get('comment', '').strip()
+
+    if not ingredients:
+        return jsonify({'error': 'No ingredients provided.'}), 400
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        ingredient_list = '\n'.join(f'- {ing}' for ing in ingredients)
+        user_notes      = f'\n\nUser notes / preferences: {comment}' if comment else ''
+
+        prompt = f"""You are a creative and knowledgeable chef. A user has collected the following ingredients and wants you to create a unique, delicious recipe just for them.
+
+Ingredients available:
+{ingredient_list}{user_notes}
+
+Create a complete, creative recipe using these ingredients. Be imaginative with the name and technique. Structure your response exactly like this:
+
+# [Creative Recipe Name]
+
+**Cuisine style:** [e.g. Italian, Asian-fusion, Mediterranean]
+**Prep time:** [X min] | **Cook time:** [X min] | **Serves:** [X]
+
+## What You'll Need
+[List each ingredient with a realistic quantity, plus any common pantry staples you'd reasonably assume they have (oil, salt, pepper, water)]
+
+## Instructions
+[Clear numbered steps. Be specific about temperatures, times, and techniques. Make it feel like a real chef is guiding them.]
+
+## Chef's Tip
+[One genuinely useful tip that elevates the dish — a technique, a substitution, or a serving suggestion]
+
+Keep the tone warm and encouraging. Make this recipe feel special."""
+
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=1500,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+
+        return jsonify({'recipe': message.content[0].text})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/publish-recipe', methods=['POST'])
+def publish_recipe_api():
+    """
+    Publish a Claude-generated recipe to the database.
+    Accepts JSON: {
+        title: str,
+        instructions: str,       # full markdown from Claude
+        description: str,
+        ingredients: [{name, quantity, unitID}],
+        servings: int,
+        prepTime: int|null,
+        cookTime: int|null
+    }
+    Returns JSON: { recipe_id, url }
+    """
+    uid = current_user_id()
+    if not uid:
+        return jsonify({'error': 'You must be logged in to publish a recipe.'}), 401
+
+    data         = request.get_json(silent=True) or {}
+    title        = (data.get('title') or '').strip()[:150]
+    instructions = (data.get('instructions') or '').strip()
+    description  = (data.get('description') or '').strip() or None
+    ingredients  = data.get('ingredients', [])
+    servings     = data.get('servings', 2)
+    prep_time    = data.get('prepTime')
+    cook_time    = data.get('cookTime')
+
+    if not title:
+        return jsonify({'error': 'Could not determine a recipe title from Claude\'s output.'}), 400
+    if not ingredients:
+        return jsonify({'error': 'No ingredients to publish.'}), 400
+
+    # Gracefully handle duplicate: return existing recipe id with a 409
+    duplicate = Recipe.query.filter_by(authorID=uid, title=title).first()
+    if duplicate:
+        return jsonify({
+            'error': f'You already have a recipe called "{title}". '
+                     'Try tweaking your ingredients or note and cooking again.',
+            'recipe_id': duplicate.id,
+            'url': url_for('view_recipe', recipe_id=duplicate.id)
+        }), 409
+
+    try:
+        new_recipe = Recipe(
+            authorID     = uid,
+            title        = title,
+            description  = description,
+            instructions = instructions,
+            forkedFrom   = None,
+            baseServings = max(1, int(servings)) if servings else 2,
+            prepTime     = int(prep_time)  if prep_time  else None,
+            cookTime     = int(cook_time)  if cook_time  else None,
+        )
+        db.session.add(new_recipe)
+        db.session.flush()
+
+        for ing in ingredients:
+            name = (ing.get('name') or '').strip()[:32]
+            if not name:
+                continue
+            quantity = float(ing.get('quantity') or 1.0)
+            unit_id  = int(ing.get('unitID')   or 1)
+            db.session.add(Ingredient(
+                recipeID = new_recipe.id,
+                unitID   = unit_id,
+                name     = name,
+                quantity = quantity,
+            ))
+
+        db.session.commit()
+        return jsonify({
+            'recipe_id': new_recipe.id,
+            'url': url_for('view_recipe', recipe_id=new_recipe.id)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

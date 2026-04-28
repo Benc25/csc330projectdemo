@@ -47,7 +47,7 @@
     {% for item in popular %}
     <div class="recipe-card-wrap" style="display:flex; height:100%;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link" style="display:flex; flex:1;">
-            <article class="recipe-card popular-card" style="display:flex; flex-direction:column; width:100%; height:100%;">
+            <article class="recipe-card popular-card{% if user and user.id == item.recipe.authorID %} my-popular-card{% endif %}" style="display:flex; flex-direction:column; width:100%; height:100%;">
                 {% if item.recipe.image %}
                 <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
                 {% endif %}
@@ -57,8 +57,8 @@
                         <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
                     </div>
                     <h3>{{ item.recipe.title }}</h3>
-                    <p style="flex-grow:1;">{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
-                    <div class="pill-row">
+                    <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
+                    <div class="pill-row" style="margin-top:auto;">
                         <span class="pill">Serves {{ item.recipe.baseServings }}</span>
                     </div>
                     <div class="recipe-card-footer">
@@ -99,7 +99,7 @@
     {% for item in random_recipes %}
     <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-            <article class="recipe-card" style="height: 180px;">
+            <article class="recipe-card{% if user and user.id == item.recipe.authorID %} my-card{% endif %}" style="height: 180px;">
                 {% if item.recipe.image %}
                 <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
                 {% endif %}
@@ -108,7 +108,7 @@
                         <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
                     </div>
                     <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
-                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                    <div class="recipe-card-footer" style="font-size: .8rem; margin-top: auto;">
                         <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
                         <span>Open →</span>
                     </div>
@@ -143,7 +143,7 @@
     {% for item in newest %}
     <div class="recipe-card-wrap" style="flex: 1 1 0; min-width: 0;">
         <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-            <article class="recipe-card" style="height: 180px;">
+            <article class="recipe-card{% if user and user.id == item.recipe.authorID %} my-card{% endif %}" style="height: 180px;">
                 {% if item.recipe.image %}
                 <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
                 {% endif %}
@@ -152,7 +152,7 @@
                         <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
                     </div>
                     <h3 style="font-size: .95rem; margin: 6px 0;">{{ item.recipe.title }}</h3>
-                    <div class="recipe-card-footer" style="font-size: .8rem;">
+                    <div class="recipe-card-footer" style="font-size: .8rem; margin-top: auto;">
                         <span class="muted-small">Serves {{ item.recipe.baseServings }}</span>
                         <span>Open →</span>
                     </div>
