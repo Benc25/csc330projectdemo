@@ -4,20 +4,19 @@
 {% block content %}
 <section class="hero-card">
     <div>
-        <h1>Save family recipes, fork ideas, and share kitchen knowledge.</h1>
-        <p class="hero-copy">
-            The Open Kitchen helps users create, organize, and discover recipes in one place.
-            Save your favorite meals, search by ingredients or tags, and build on ideas shared by others.
-        </p>
-        <div class="hero-actions">
-            <a href="{{ url_for('create_recipe') }}" class="btn btn-primary">Create Recipe</a>
-            <a href="{{ url_for('search', q='pasta') }}" class="btn btn-secondary">Try Search</a>
-        </div>
+        {% if user %}
+        <p style="margin: 0 0 4px 0; font-size: .9rem; color: var(--muted);">Welcome back,</p>
+        <h1 style="margin: 0 0 14px 0; font-size: 2rem; line-height: 1.2;">{{ user.firstName }} {{ user.lastName }}</h1>
+        {% else %}
+        <p style="margin: 0 0 4px 0; font-size: .9rem; color: var(--muted);">Welcome to</p>
+        <h1 style="margin: 0 0 14px 0; font-size: 2rem; line-height: 1.2;">The Open Kitchen</h1>
+        {% endif %}
+        <p style="margin: 0; font-size: 1.05rem; font-style: italic; color: var(--muted); line-height: 1.75; max-width: 520px; padding-left: 16px; border-left: 3px solid var(--primary-light, #b8caff);">A cozy place to keep grandma's recipes alive — share, adapt, and pass down the meals that matter most.</p>
+
     </div>
- 
+
     {% if top_recipe %}
     <div class="stats-panel" style="display:flex; gap: 1rem; align-items:stretch;">
-        <!-- Highest rated takes up all remaining space -->
         <a href="{{ url_for('view_recipe', recipe_id=top_recipe.recipe.id) }}" style="text-decoration:none; color:inherit; flex: 3;">
             <div class="stat-card" style="height:100%; text-align:left; padding: 1.25rem 1.5rem; display:flex; flex-direction:column; justify-content:center;">
                 <span class="mini-pill popular-badge" style="margin-bottom: 8px; display:inline-block;">★ Highest Rated</span>
@@ -37,10 +36,10 @@
  
 <!-- Popular Recipes -->
 {% if popular %}
-<section class="section-head" style="margin-top: 36px;">
+<hr style="border: none; border-top: 1px solid var(--line); margin: 32px 0 0 0;">
+<section class="section-head" style="margin-top: 20px;">
     <div>
         <h2>Popular Recipes</h2>
-        <p>Top-rated recipes from the community.</p>
     </div>
 </section>
 <div class="card-grid" style="align-items:stretch;">
@@ -89,10 +88,10 @@
  
 <!-- Random Recipes -->
 {% if random_recipes %}
-<section class="section-head" style="margin-top: 36px;">
+<hr style="border: none; border-top: 1px solid var(--line); margin: 32px 0 0 0;">
+<section class="section-head" style="margin-top: 20px;">
     <div>
         <h2>Discover Recipes</h2>
-        <p>A random selection from the kitchen.</p>
     </div>
 </section>
 <div style="display: flex; gap: 18px;">
@@ -133,10 +132,10 @@
 
 <!-- Newest Recipes -->
 {% if newest %}
-<section class="section-head" style="margin-top: 36px;">
+<hr style="border: none; border-top: 1px solid var(--line); margin: 32px 0 0 0;">
+<section class="section-head" style="margin-top: 20px;">
     <div>
         <h2>Newest Recipes</h2>
-        <p>Just added to the Open Kitchen.</p>
     </div>
 </section>
 <div style="display: flex; gap: 18px;">

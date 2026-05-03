@@ -1359,7 +1359,6 @@ def generate_recipe_api():
 
     data        = request.get_json(silent=True) or {}
     ingredients = data.get('ingredients', [])
-    comment     = data.get('comment', '').strip()
 
     if not ingredients:
         return jsonify({'error': 'No ingredients provided.'}), 400
@@ -1369,14 +1368,13 @@ def generate_recipe_api():
         client = anthropic.Anthropic(api_key=api_key)
 
         ingredient_list = '\n'.join(f'- {ing}' for ing in ingredients)
-        user_notes      = f'\n\nUser notes / preferences: {comment}' if comment else ''
 
         prompt = f"""You are a creative and knowledgeable chef. A user has collected the following ingredients and wants you to create a unique, delicious recipe just for them.
 
 Ingredients available:
-{ingredient_list}{user_notes}
+{ingredient_list}
 
-Create a complete, creative recipe using these ingredients. Be imaginative with the name and technique. Structure your response exactly like this:
+Create a complete, creative recipe using ONLY the ingredients listed above. Do not add any other ingredients — not oil, salt, water, or any pantry staples unless they are explicitly in the list. Every ingredient used in the recipe must come from the list provided. Be imaginative with the name and technique. Structure your response exactly like this:
 
 # [Creative Recipe Name]
 
@@ -1384,13 +1382,10 @@ Create a complete, creative recipe using these ingredients. Be imaginative with 
 **Prep time:** [X min] | **Cook time:** [X min] | **Serves:** [X]
 
 ## What You'll Need
-[List each ingredient with a realistic quantity, plus any common pantry staples you'd reasonably assume they have (oil, salt, pepper, water)]
+[List only the provided ingredients with realistic quantities. Do not add anything else.]
 
 ## Instructions
-[Clear numbered steps. Be specific about temperatures, times, and techniques. Make it feel like a real chef is guiding them.]
-
-## Chef's Tip
-[One genuinely useful tip that elevates the dish — a technique, a substitution, or a serving suggestion]
+[Clear numbered steps using only the listed ingredients. Be specific about temperatures, times, and techniques. Make it feel like a real chef is guiding them.]
 
 Keep the tone warm and encouraging. Make this recipe feel special."""
 
@@ -1435,7 +1430,7 @@ def publish_recipe_api():
     cook_time    = data.get('cookTime')
 
     if not title:
-        return jsonify({'error': 'Could not determine a recipe title from Claude\'s output.'}), 400
+        return jsonify({'error': 'Could not determine a recipe title from The Pot\'s output.'}), 400
     if not ingredients:
         return jsonify({'error': 'No ingredients to publish.'}), 400
 
@@ -1455,10 +1450,11 @@ def publish_recipe_api():
             title        = title,
             description  = description,
             instructions = instructions,
-            forkedFrom   = None,
-            baseServings = max(1, int(servings)) if servings else 2,
-            prepTime     = int(prep_time)  if prep_time  else None,
-            cookTime     = int(cook_time)  if cook_time  else None,
+            forkedFrom      = None,
+            baseServings    = max(1, int(servings)) if servings else 2,
+            prepTime        = int(prep_time)  if prep_time  else None,
+            cookTime        = int(cook_time)  if cook_time  else None,
+            isAIGenerated   = True,
         )
         db.session.add(new_recipe)
         db.session.flush()

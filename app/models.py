@@ -50,6 +50,7 @@ class Recipe(db.Model):
     cookTime = db.Column(db.Integer, nullable=True)
     image = db.Column(db.String(255), nullable=True)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    isAIGenerated = db.Column(db.Boolean, nullable=False, default=False)
 
     ingredients = db.relationship('Ingredient', backref='recipe', lazy=True, cascade='all, delete-orphan')
     categories = db.relationship('RecipeCategory', backref='recipe', lazy=True, cascade='all, delete-orphan')
