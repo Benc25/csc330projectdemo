@@ -713,7 +713,14 @@
           if (saved) pot = JSON.parse(saved);
         } catch(e) { pot = []; }
       }
-      loadPot();
+
+      // Clear the pot from storage whenever the user is logged out
+      if (!mpLoggedIn) {
+        try { localStorage.removeItem('mp_pot'); } catch(e) {}
+        pot = [];
+      } else {
+        loadPot();
+      }
 
       /* ── Elements ── */
       // refreshUI() is called after elements are defined below

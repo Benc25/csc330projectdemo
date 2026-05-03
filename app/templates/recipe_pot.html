@@ -1,0 +1,861 @@
+{% extends "base.html" %}
+{% block title %}The Pot | The Open Kitchen{% endblock %}
+
+{% block content %}
+<style>
+  /* Hide the base Magic Pot widget on this page — this page has its own pot UI */
+  #mp-pot-wrap, #mp-potlist { display: none !important; }
+
+  /* Override page-shell padding so the layout fills the full viewport height */
+  .page-shell { padding: 0; }
+
+  .rp-main {
+    display: flex;
+    height: calc(100vh - 68px);
+  }
+
+  /* ── Sidebar ── */
+  .rp-sidebar {
+    width: 300px;
+    background: #1e0d06;
+    border-right: 2px solid #5c3d2e;
+    overflow-y: auto;
+    padding: 18px 14px;
+    flex-shrink: 0;
+    color: #f5e6d3;
+  }
+  .rp-sidebar::-webkit-scrollbar { width: 5px; }
+  .rp-sidebar::-webkit-scrollbar-track { background: #1a0f0a; }
+  .rp-sidebar::-webkit-scrollbar-thumb { background: #5c3d2e; border-radius: 3px; }
+
+  .rp-category-section { margin-bottom: 22px; }
+  .rp-category-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #f5a623;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #5c3d2e;
+  }
+  .rp-ingredients-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  .rp-ingredient-card {
+    background: #2d1810;
+    border: 1.5px solid #5c3d2e;
+    border-radius: 10px;
+    padding: 9px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: grab;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    user-select: none;
+  }
+  .rp-ingredient-card:hover {
+    background: #3d2215;
+    border-color: #f5a623;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(245,166,35,.2);
+  }
+  .rp-ingredient-card:active { cursor: grabbing; }
+  .rp-ingredient-card.dragging { opacity: 0.35; }
+  .rp-ingredient-card.already-added { border-color: #f5a623; opacity: 0.6; }
+  .rp-ingredient-emoji { font-size: 24px; line-height: 1; }
+  .rp-ingredient-name { font-size: 10.5px; color: #c4956a; text-align: center; font-weight: 500; }
+
+  /* ── Content / drop zone ── */
+  .rp-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    background: #1a0f0a;
+    transition: background 0.2s;
+  }
+  .rp-content.drag-over { background: rgba(245,166,35,.04); }
+  .rp-content-hint {
+    text-align: center;
+    max-width: 460px;
+    pointer-events: none;
+    color: #f5e6d3;
+  }
+  .rp-content-hint h2 { font-size: 30px; color: #f5a623; margin-bottom: 14px; font-family: inherit; }
+  .rp-content-hint p  { font-size: 15px; color: #c4956a; line-height: 1.75; }
+  .rp-content-hint .sub { color: #5c3d2e; font-size: 13px; margin-top: 14px; }
+
+  /* ── In-the-pot chip panel ── */
+  .rp-pot-list-panel {
+    position: fixed;
+    bottom: 144px;
+    right: 28px;
+    background: #2a150a;
+    border: 1.5px solid #5c3d2e;
+    border-radius: 12px;
+    padding: 12px 14px;
+    width: 190px;
+    z-index: 900;
+    display: none;
+    box-shadow: 0 6px 24px rgba(0,0,0,.55);
+  }
+  .rp-pot-list-panel.visible { display: block; }
+  .rp-pot-list-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #f5a623;
+    margin-bottom: 8px;
+  }
+  .rp-pot-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .rp-pot-chip {
+    background: #3d2215;
+    border: 1px solid #5c3d2e;
+    border-radius: 14px;
+    padding: 3px 9px;
+    font-size: 10.5px;
+    color: #f5e6d3;
+  }
+
+  /* ── The Pot button ── */
+  .rp-pot-wrap {
+    position: fixed;
+    bottom: 26px;
+    right: 26px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .rp-pot-label {
+    background: #2d1810;
+    border: 1px solid #5c3d2e;
+    border-radius: 8px;
+    padding: 5px 11px;
+    font-size: 11px;
+    color: #c4956a;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+  }
+  .rp-pot-wrap:hover .rp-pot-label { opacity: 1; transform: translateY(0); }
+
+  .rp-pot-btn {
+    width: 88px;
+    height: 88px;
+    background: radial-gradient(circle at 35% 35%, #7c4a2d, #3d1c0a);
+    border: 3px solid #c4956a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: transform .25s, border-color .25s, box-shadow .25s;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5);
+  }
+  .rp-pot-btn:hover {
+    transform: scale(1.06);
+    border-color: #f5a623;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5), 0 0 22px rgba(245,166,35,.35);
+  }
+  .rp-pot-btn.over {
+    border-color: #f5a623;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5), 0 0 36px rgba(245,166,35,.6);
+    transform: scale(1.1);
+  }
+  .rp-pot-btn.has-items { animation: rpPotPulse 2.4s ease-in-out infinite; }
+  @keyframes rpPotPulse {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.035); }
+  }
+  .rp-pot-btn.drop-flash { animation: rpFlashPop .35s ease-out forwards; }
+  @keyframes rpFlashPop {
+    0%   { box-shadow: 0 8px 28px rgba(0,0,0,.5), 0 0 50px rgba(245,166,35,.9); transform: scale(1.12); }
+    100% { box-shadow: 0 8px 28px rgba(0,0,0,.5); transform: scale(1); }
+  }
+
+  .rp-pot-icon { font-size: 40px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+
+  .rp-pot-badge {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: #f5a623;
+    color: #1a0f0a;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    border: 2px solid #1a0f0a;
+  }
+  .rp-pot-badge.visible { display: flex; }
+
+  /* Steam animation */
+  .rp-steam-wrap {
+    position: absolute;
+    top: -18px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity .4s;
+  }
+  .rp-pot-btn.has-items .rp-steam-wrap { opacity: 1; }
+  .rp-steam-puff {
+    width: 4px; height: 14px;
+    background: rgba(255,255,255,.25);
+    border-radius: 2px;
+    animation: rpSteamUp 1.6s ease-in-out infinite;
+  }
+  .rp-steam-puff:nth-child(2) { animation-delay: .3s; }
+  .rp-steam-puff:nth-child(3) { animation-delay: .6s; }
+  @keyframes rpSteamUp {
+    0%   { opacity: 0; transform: translateY(0) scaleX(1); }
+    50%  { opacity: .55; }
+    100% { opacity: 0; transform: translateY(-16px) scaleX(1.6); }
+  }
+
+  /* ── Drag ghost ── */
+  #rp-drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    background: #3d2215;
+    border: 2px solid #f5a623;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 4px 20px rgba(0,0,0,.55);
+  }
+  #rp-drag-ghost.on { display: flex; }
+  #rp-ghost-emoji { font-size: 22px; }
+  #rp-ghost-name  { font-size: 10px; color: #c4956a; }
+
+  /* ── Recipe modal ── */
+  .rp-modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(8,3,1,.88);
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .rp-modal-bg.open { display: flex; }
+
+  .rp-recipe-card {
+    background: linear-gradient(160deg, #231208 0%, #1a0f0a 100%);
+    border: 2px solid #5c3d2e;
+    border-radius: 20px;
+    padding: 36px 38px 28px;
+    max-width: 580px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,.8);
+    animation: rpSlideUp .25s ease-out;
+    color: #f5e6d3;
+  }
+  @keyframes rpSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rp-recipe-card::-webkit-scrollbar { width: 5px; }
+  .rp-recipe-card::-webkit-scrollbar-track { background: #1a0f0a; }
+  .rp-recipe-card::-webkit-scrollbar-thumb { background: #5c3d2e; border-radius: 3px; }
+
+  .rp-close-x {
+    position: absolute; top: 14px; right: 14px;
+    background: #3d1c0a; border: 1px solid #5c3d2e;
+    color: #c4956a; border-radius: 8px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px;
+    transition: background .15s, color .15s;
+  }
+  .rp-close-x:hover { background: #5c3d2e; color: #f5e6d3; }
+
+  .rp-r-header-emoji { font-size: 52px; text-align: center; margin-bottom: 10px; }
+  .rp-r-title {
+    font-size: 26px; font-weight: 800; color: #f5a623;
+    text-align: center; margin-bottom: 6px; font-family: inherit;
+  }
+  .rp-r-sub { font-size: 13px; color: #c4956a; text-align: center; margin-bottom: 22px; }
+
+  .rp-r-meta {
+    display: flex; gap: 12px;
+    justify-content: center; margin-bottom: 26px;
+    flex-wrap: wrap;
+  }
+  .rp-r-chip {
+    background: #2d1810; border: 1px solid #5c3d2e;
+    border-radius: 20px; padding: 5px 13px;
+    font-size: 12px; color: #c4956a;
+  }
+
+  .rp-r-section {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: #f5a623; margin-bottom: 11px;
+    padding-bottom: 5px; border-bottom: 1px solid #5c3d2e;
+  }
+
+  .rp-r-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 26px; }
+  .rp-r-tag {
+    background: #2d1810; border: 1px solid #5c3d2e;
+    border-radius: 20px; padding: 4px 11px;
+    font-size: 12px; color: #f5e6d3;
+  }
+
+  .rp-r-steps { list-style: none; display: flex; flex-direction: column; gap: 13px; margin-bottom: 26px; padding: 0; }
+  .rp-r-step { display: flex; gap: 13px; align-items: flex-start; }
+  .rp-step-num {
+    background: #f5a623; color: #1a0f0a;
+    border-radius: 50%; width: 25px; height: 25px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+  }
+  .rp-step-text { font-size: 14px; color: #f5e6d3; line-height: 1.65; }
+
+  .rp-tip-box {
+    background: #2a1508; border: 1px solid #f5a623;
+    border-radius: 11px; padding: 14px 18px;
+    display: flex; gap: 11px; align-items: flex-start;
+    margin-bottom: 22px;
+  }
+  .rp-tip-icon { font-size: 18px; flex-shrink: 0; }
+  .rp-tip-text { font-size: 12.5px; color: #c4956a; line-height: 1.65; }
+
+  .rp-btn-clear {
+    width: 100%; padding: 10px;
+    background: #3d1c0a; border: 1.5px solid #5c3d2e;
+    color: #c4956a; border-radius: 10px;
+    font-size: 13px; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .rp-btn-clear:hover { background: #5c3d2e; color: #f5e6d3; }
+</style>
+
+<!-- Page header -->
+<div style="background: linear-gradient(135deg, #2d1810 0%, #1a0f0a 100%); padding: 16px 28px; border-bottom: 2px solid #5c3d2e; display: flex; align-items: center; gap: 14px;">
+  <div>
+    <h1 style="font-size: 22px; font-weight: 800; color: #f5a623; margin: 0;">The Pot</h1>
+    <p style="font-size: 13px; color: #c4956a; margin: 2px 0 0 0;">Drag ingredients from the left panel into the pot — then click the pot to conjure a recipe</p>
+  </div>
+</div>
+
+<!-- Main layout: sidebar + drop zone -->
+<div class="rp-main">
+
+  <!-- Sidebar: ingredient picker -->
+  <div class="rp-sidebar">
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Proteins</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Chicken"  data-emoji="🍗" data-type="protein"><span class="rp-ingredient-emoji">🍗</span><span class="rp-ingredient-name">Chicken</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Beef"     data-emoji="🥩" data-type="protein"><span class="rp-ingredient-emoji">🥩</span><span class="rp-ingredient-name">Beef</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Salmon"   data-emoji="🐟" data-type="protein"><span class="rp-ingredient-emoji">🐟</span><span class="rp-ingredient-name">Salmon</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Shrimp"   data-emoji="🍤" data-type="protein"><span class="rp-ingredient-emoji">🍤</span><span class="rp-ingredient-name">Shrimp</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Tofu"     data-emoji="🫙" data-type="protein"><span class="rp-ingredient-emoji">🫙</span><span class="rp-ingredient-name">Tofu</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Eggs"     data-emoji="🥚" data-type="protein"><span class="rp-ingredient-emoji">🥚</span><span class="rp-ingredient-name">Eggs</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Bacon"    data-emoji="🥓" data-type="protein"><span class="rp-ingredient-emoji">🥓</span><span class="rp-ingredient-name">Bacon</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Pork"     data-emoji="🐖" data-type="protein"><span class="rp-ingredient-emoji">🐖</span><span class="rp-ingredient-name">Pork</span></div>
+      </div>
+    </div>
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Vegetables</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Onion"       data-emoji="🧅" data-type="vegetable"><span class="rp-ingredient-emoji">🧅</span><span class="rp-ingredient-name">Onion</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Garlic"      data-emoji="🧄" data-type="vegetable"><span class="rp-ingredient-emoji">🧄</span><span class="rp-ingredient-name">Garlic</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Tomato"      data-emoji="🍅" data-type="vegetable"><span class="rp-ingredient-emoji">🍅</span><span class="rp-ingredient-name">Tomato</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Bell Pepper" data-emoji="🫑" data-type="vegetable"><span class="rp-ingredient-emoji">🫑</span><span class="rp-ingredient-name">Bell Pepper</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Broccoli"    data-emoji="🥦" data-type="vegetable"><span class="rp-ingredient-emoji">🥦</span><span class="rp-ingredient-name">Broccoli</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Spinach"     data-emoji="🌿" data-type="vegetable"><span class="rp-ingredient-emoji">🌿</span><span class="rp-ingredient-name">Spinach</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Mushrooms"   data-emoji="🍄" data-type="vegetable"><span class="rp-ingredient-emoji">🍄</span><span class="rp-ingredient-name">Mushrooms</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Carrot"      data-emoji="🥕" data-type="vegetable"><span class="rp-ingredient-emoji">🥕</span><span class="rp-ingredient-name">Carrot</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Potato"      data-emoji="🥔" data-type="vegetable"><span class="rp-ingredient-emoji">🥔</span><span class="rp-ingredient-name">Potato</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Zucchini"    data-emoji="🥒" data-type="vegetable"><span class="rp-ingredient-emoji">🥒</span><span class="rp-ingredient-name">Zucchini</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Corn"        data-emoji="🌽" data-type="vegetable"><span class="rp-ingredient-emoji">🌽</span><span class="rp-ingredient-name">Corn</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Eggplant"    data-emoji="🍆" data-type="vegetable"><span class="rp-ingredient-emoji">🍆</span><span class="rp-ingredient-name">Eggplant</span></div>
+      </div>
+    </div>
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Grains & Starches</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Pasta"    data-emoji="🍝" data-type="grain"><span class="rp-ingredient-emoji">🍝</span><span class="rp-ingredient-name">Pasta</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Rice"     data-emoji="🍚" data-type="grain"><span class="rp-ingredient-emoji">🍚</span><span class="rp-ingredient-name">Rice</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Bread"    data-emoji="🍞" data-type="grain"><span class="rp-ingredient-emoji">🍞</span><span class="rp-ingredient-name">Bread</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Quinoa"   data-emoji="🌾" data-type="grain"><span class="rp-ingredient-emoji">🌾</span><span class="rp-ingredient-name">Quinoa</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Noodles"  data-emoji="🍜" data-type="grain"><span class="rp-ingredient-emoji">🍜</span><span class="rp-ingredient-name">Noodles</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Tortilla" data-emoji="🫓" data-type="grain"><span class="rp-ingredient-emoji">🫓</span><span class="rp-ingredient-name">Tortilla</span></div>
+      </div>
+    </div>
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Dairy</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Butter" data-emoji="🧈" data-type="dairy"><span class="rp-ingredient-emoji">🧈</span><span class="rp-ingredient-name">Butter</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Cheese" data-emoji="🧀" data-type="dairy"><span class="rp-ingredient-emoji">🧀</span><span class="rp-ingredient-name">Cheese</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Cream"  data-emoji="🥛" data-type="dairy"><span class="rp-ingredient-emoji">🥛</span><span class="rp-ingredient-name">Cream</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Yogurt" data-emoji="🍶" data-type="dairy"><span class="rp-ingredient-emoji">🍶</span><span class="rp-ingredient-name">Yogurt</span></div>
+      </div>
+    </div>
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Herbs & Spices</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Basil"        data-emoji="🌿" data-type="herb"><span class="rp-ingredient-emoji">🌿</span><span class="rp-ingredient-name">Basil</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Cilantro"     data-emoji="🍀" data-type="herb"><span class="rp-ingredient-emoji">🍀</span><span class="rp-ingredient-name">Cilantro</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Thyme"        data-emoji="🌱" data-type="herb"><span class="rp-ingredient-emoji">🌱</span><span class="rp-ingredient-name">Thyme</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Rosemary"     data-emoji="🌲" data-type="herb"><span class="rp-ingredient-emoji">🌲</span><span class="rp-ingredient-name">Rosemary</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Oregano"      data-emoji="🍃" data-type="herb"><span class="rp-ingredient-emoji">🍃</span><span class="rp-ingredient-name">Oregano</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Cumin"        data-emoji="🟤" data-type="spice"><span class="rp-ingredient-emoji">🟤</span><span class="rp-ingredient-name">Cumin</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Paprika"      data-emoji="🌶️" data-type="spice"><span class="rp-ingredient-emoji">🌶️</span><span class="rp-ingredient-name">Paprika</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Turmeric"     data-emoji="🟡" data-type="spice"><span class="rp-ingredient-emoji">🟡</span><span class="rp-ingredient-name">Turmeric</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Ginger"       data-emoji="🫚" data-type="spice"><span class="rp-ingredient-emoji">🫚</span><span class="rp-ingredient-name">Ginger</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Chili Flakes" data-emoji="🌶️" data-type="spice"><span class="rp-ingredient-emoji">🌶️</span><span class="rp-ingredient-name">Chili Flakes</span></div>
+      </div>
+    </div>
+
+    <div class="rp-category-section">
+      <div class="rp-category-title">Pantry & Sauces</div>
+      <div class="rp-ingredients-grid">
+        <div class="rp-ingredient-card" draggable="true" data-name="Olive Oil"    data-emoji="🫒" data-type="pantry"><span class="rp-ingredient-emoji">🫒</span><span class="rp-ingredient-name">Olive Oil</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Soy Sauce"    data-emoji="🧪" data-type="pantry"><span class="rp-ingredient-emoji">🧪</span><span class="rp-ingredient-name">Soy Sauce</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Lemon"        data-emoji="🍋" data-type="pantry"><span class="rp-ingredient-emoji">🍋</span><span class="rp-ingredient-name">Lemon</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Lime"         data-emoji="🍈" data-type="pantry"><span class="rp-ingredient-emoji">🍈</span><span class="rp-ingredient-name">Lime</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Honey"        data-emoji="🍯" data-type="pantry"><span class="rp-ingredient-emoji">🍯</span><span class="rp-ingredient-name">Honey</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Wine"         data-emoji="🍷" data-type="pantry"><span class="rp-ingredient-emoji">🍷</span><span class="rp-ingredient-name">Wine</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Broth"        data-emoji="🍵" data-type="pantry"><span class="rp-ingredient-emoji">🍵</span><span class="rp-ingredient-name">Broth</span></div>
+        <div class="rp-ingredient-card" draggable="true" data-name="Coconut Milk" data-emoji="🥥" data-type="pantry"><span class="rp-ingredient-emoji">🥥</span><span class="rp-ingredient-name">Coconut Milk</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Drop zone / main content area -->
+  <div class="rp-content" id="rpContentArea">
+    <div class="rp-content-hint">
+      <h2>Start Cooking!</h2>
+      <p>Drag ingredients from the left panel and drop them onto the <strong style="color:#f5a623">pot</strong> in the bottom-right corner. Mix and match freely — then click the pot to generate a full recipe!</p>
+      <p class="sub">Try pasta + tomato + garlic + basil for a classic Italian dish</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- In-the-pot chip panel -->
+<div class="rp-pot-list-panel" id="rpPotListPanel">
+  <div class="rp-pot-list-title">In the pot:</div>
+  <div class="rp-pot-chips" id="rpPotChips"></div>
+</div>
+
+<!-- Pot button -->
+<div class="rp-pot-wrap" id="rpPotWrap">
+  <div class="rp-pot-label" id="rpPotLabel">Click to generate recipe!</div>
+  <div class="rp-pot-btn" id="rpPotBtn">
+    <div class="rp-steam-wrap">
+      <div class="rp-steam-puff"></div>
+      <div class="rp-steam-puff"></div>
+      <div class="rp-steam-puff"></div>
+    </div>
+    <span class="rp-pot-icon">🍲</span>
+    <div class="rp-pot-badge" id="rpPotBadge"></div>
+  </div>
+</div>
+
+<!-- Custom drag ghost element -->
+<div id="rp-drag-ghost">
+  <span id="rp-ghost-emoji"></span>
+  <span id="rp-ghost-name"></span>
+</div>
+
+<!-- Recipe output modal -->
+<div class="rp-modal-bg" id="rpModalBg">
+  <div class="rp-recipe-card">
+    <button class="rp-close-x" id="rpCloseBtn">&#x2715;</button>
+    <div id="rpRecipeOutput"></div>
+    <button class="rp-btn-clear" id="rpClearBtn">Clear Pot &amp; Start Over</button>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let rpIngredients = [];
+let rpDragging    = false;
+let rpDragPayload = null;
+
+/* ── Element refs ── */
+const rpPotBtn       = document.getElementById('rpPotBtn');
+const rpPotBadge     = document.getElementById('rpPotBadge');
+const rpPotLabel     = document.getElementById('rpPotLabel');
+const rpPotListPanel = document.getElementById('rpPotListPanel');
+const rpPotChips     = document.getElementById('rpPotChips');
+const rpModalBg      = document.getElementById('rpModalBg');
+const rpRecipeOutput = document.getElementById('rpRecipeOutput');
+const rpCloseBtn     = document.getElementById('rpCloseBtn');
+const rpClearBtn     = document.getElementById('rpClearBtn');
+const rpContentArea  = document.getElementById('rpContentArea');
+const rpGhost        = document.getElementById('rp-drag-ghost');
+const rpGhostEmoji   = document.getElementById('rp-ghost-emoji');
+const rpGhostName    = document.getElementById('rp-ghost-name');
+
+/* ── Drag from ingredient cards ── */
+document.querySelectorAll('.rp-ingredient-card').forEach(card => {
+  card.addEventListener('dragstart', e => {
+    rpDragPayload = { name: card.dataset.name, emoji: card.dataset.emoji, type: card.dataset.type };
+    card.classList.add('dragging');
+    rpGhostEmoji.textContent = card.dataset.emoji;
+    rpGhostName.textContent  = card.dataset.name;
+    rpGhost.classList.add('on');
+    const blank = new Image();
+    blank.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(blank, 0, 0);
+    e.dataTransfer.effectAllowed = 'copy';
+    rpDragging = true;
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    rpGhost.classList.remove('on');
+    rpPotBtn.classList.remove('over');
+    rpDragging    = false;
+    rpDragPayload = null;
+  });
+});
+
+/* Follow the mouse cursor with the ghost element */
+document.addEventListener('mousemove', e => {
+  if (!rpDragging) return;
+  rpGhost.style.left = e.clientX + 'px';
+  rpGhost.style.top  = e.clientY + 'px';
+});
+
+/* ── Pot as a drop target ── */
+rpPotBtn.addEventListener('dragover',  e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; rpPotBtn.classList.add('over'); });
+rpPotBtn.addEventListener('dragleave', () => rpPotBtn.classList.remove('over'));
+rpPotBtn.addEventListener('drop', e => {
+  e.preventDefault();
+  rpPotBtn.classList.remove('over');
+  if (rpDragPayload) addToPot(rpDragPayload);
+});
+
+/* Allow dropping anywhere in the content area */
+rpContentArea.addEventListener('dragover', e => e.preventDefault());
+
+/* ── Add ingredient to pot ── */
+function addToPot(item) {
+  if (rpIngredients.some(i => i.name === item.name)) {
+    /* Flash red to indicate the ingredient is already in the pot */
+    rpPotBtn.style.borderColor = '#e05050';
+    setTimeout(() => { rpPotBtn.style.borderColor = ''; }, 500);
+    return;
+  }
+  rpIngredients.push({ ...item });
+
+  /* Mark the sidebar card as added */
+  document.querySelectorAll('.rp-ingredient-card').forEach(c => {
+    if (c.dataset.name === item.name) c.classList.add('already-added');
+  });
+
+  /* Trigger the drop flash animation */
+  rpPotBtn.classList.remove('drop-flash');
+  void rpPotBtn.offsetWidth;
+  rpPotBtn.classList.add('drop-flash');
+
+  refreshUI();
+}
+
+/* ── Sync pot UI to current state ── */
+function refreshUI() {
+  const n = rpIngredients.length;
+  if (n > 0) {
+    rpPotBadge.textContent = n;
+    rpPotBadge.classList.add('visible');
+    rpPotBtn.classList.add('has-items');
+    rpPotLabel.textContent = `${n} ingredient${n > 1 ? 's' : ''} — click to cook!`;
+    rpPotListPanel.classList.add('visible');
+    rpPotChips.innerHTML = rpIngredients.map(i => `<div class="rp-pot-chip">${i.emoji} ${i.name}</div>`).join('');
+  } else {
+    rpPotBadge.classList.remove('visible');
+    rpPotBtn.classList.remove('has-items');
+    rpPotLabel.textContent = 'Click to generate recipe!';
+    rpPotListPanel.classList.remove('visible');
+    rpPotChips.innerHTML = '';
+    document.querySelectorAll('.rp-ingredient-card').forEach(c => c.classList.remove('already-added'));
+  }
+}
+
+/* ── Open recipe modal ── */
+rpPotBtn.addEventListener('click', () => {
+  if (rpIngredients.length === 0) {
+    /* Wiggle the pot when clicked empty */
+    rpPotBtn.style.transition = 'transform .1s';
+    rpPotBtn.style.transform  = 'rotate(-6deg)';
+    setTimeout(() => { rpPotBtn.style.transform = 'rotate(6deg)'; }, 100);
+    setTimeout(() => { rpPotBtn.style.transform = ''; rpPotBtn.style.transition = ''; }, 200);
+    return;
+  }
+  renderRecipe(generateRecipe(rpIngredients));
+  rpModalBg.classList.add('open');
+});
+
+rpCloseBtn.addEventListener('click',   () => rpModalBg.classList.remove('open'));
+rpModalBg.addEventListener('click',    e  => { if (e.target === rpModalBg) rpModalBg.classList.remove('open'); });
+document.addEventListener('keydown',   e  => { if (e.key === 'Escape') rpModalBg.classList.remove('open'); });
+
+rpClearBtn.addEventListener('click', () => {
+  rpIngredients = [];
+  refreshUI();
+  rpModalBg.classList.remove('open');
+});
+
+/* ══════════════════════════════════════════
+   Local recipe generation engine
+   Builds a recipe purely from ingredient data —
+   no API call required on this page.
+   ══════════════════════════════════════════ */
+function generateRecipe(ings) {
+  const names  = ings.map(i => i.name.toLowerCase());
+  const has    = n => names.includes(n.toLowerCase());
+  const ofType = t => ings.filter(i => i.type === t);
+
+  const proteins = ofType('protein');
+  const vegs     = ofType('vegetable');
+  const grains   = ofType('grain');
+  const dairy    = ofType('dairy');
+  const herbs    = ofType('herb');
+  const spices   = ofType('spice');
+  const pantry   = ofType('pantry');
+
+  /* Detect cuisine style from key ingredients */
+  let cuisine = 'Fusion', cuisineEmoji = '🌍';
+  if (has('Soy Sauce') || has('Noodles') || has('Ginger'))                    { cuisine = 'Asian';         cuisineEmoji = '🥢'; }
+  else if (has('Pasta') && (has('Tomato') || has('Basil') || has('Oregano'))) { cuisine = 'Italian';       cuisineEmoji = '🇮🇹'; }
+  else if (has('Turmeric') || has('Cumin') || has('Coconut Milk'))            { cuisine = 'Indian / Thai'; cuisineEmoji = '🌶️'; }
+  else if (has('Tortilla') || has('Lime') || has('Cilantro'))                 { cuisine = 'Mexican';       cuisineEmoji = '🌮'; }
+  else if (has('Wine') || has('Thyme') || has('Rosemary'))                    { cuisine = 'French';        cuisineEmoji = '🥐'; }
+
+  /* Determine the recipe type and primary cooking method */
+  let rType = 'Skillet', method = 'saute';
+  if (has('Pasta'))                          { rType = 'Pasta Dish';       method = 'boil'; }
+  else if (has('Noodles'))                   { rType = 'Noodle Bowl';      method = 'stir-fry'; }
+  else if (has('Rice'))                      { rType = 'Rice Dish';        method = 'stir-fry'; }
+  else if (has('Broth') || ings.length >= 7) { rType = 'Soup / Stew';     method = 'simmer'; }
+  else if (has('Tortilla'))                  { rType = 'Taco / Wrap';      method = 'saute'; }
+  else if (has('Bread'))                     { rType = 'Toast / Sandwich'; method = 'toast'; }
+  else if (proteins.length && vegs.length)   { rType = 'Stir-Fry';        method = 'stir-fry'; }
+  else if (proteins.length && !vegs.length)  { rType = 'Roast';           method = 'roast'; }
+
+  /* Build recipe name from dominant ingredients */
+  const p = proteins[0]?.name, v = vegs[0]?.name, g = grains[0]?.name;
+  let recipeName = 'Kitchen Surprise';
+  if (p && g === 'Pasta')        recipeName = `${cuisine} ${p} Pasta`;
+  else if (p && g === 'Rice')    recipeName = `${p} Fried Rice`;
+  else if (p && g === 'Noodles') recipeName = `${cuisine} ${p} Noodles`;
+  else if (p && v)               recipeName = `${p} with ${v}`;
+  else if (p)                    recipeName = `${cuisine} ${method === 'roast' ? 'Roasted' : 'Pan-Seared'} ${p}`;
+  else if (g && v)               recipeName = `${v} ${g} Bowl`;
+  else if (g)                    recipeName = `${cuisine} ${g} Dish`;
+  else if (v)                    recipeName = `${cuisine} ${v} Medley`;
+
+  /* Timing lookup by recipe type */
+  const timing = {
+    'Pasta Dish':       { prep: '10 min', cook: '20 min' },
+    'Noodle Bowl':      { prep: '12 min', cook: '15 min' },
+    'Rice Dish':        { prep: '10 min', cook: '25 min' },
+    'Soup / Stew':      { prep: '15 min', cook: '35 min' },
+    'Roast':            { prep: '10 min', cook: '30 min' },
+    'Skillet':          { prep: '10 min', cook: '20 min' },
+    'Stir-Fry':         { prep: '15 min', cook: '10 min' },
+    'Taco / Wrap':      { prep: '15 min', cook: '15 min' },
+    'Toast / Sandwich': { prep: '5 min',  cook: '10 min' },
+  }[rType] || { prep: '10 min', cook: '20 min' };
+
+  const steps = buildSteps(ings, rType, method, proteins, vegs, grains, dairy, herbs, spices, pantry, names, has);
+  const tip   = pickTip(ings, names, has);
+
+  const recipeEmoji = {
+    'Pasta Dish': '🍝', 'Noodle Bowl': '🍜', 'Rice Dish': '🍱',
+    'Soup / Stew': '🍲', 'Roast': '🍖', 'Stir-Fry': '🥘',
+    'Skillet': '🥘', 'Taco / Wrap': '🌮', 'Toast / Sandwich': '🥪',
+  }[rType] || '🍽️';
+
+  return { name: recipeName, emoji: recipeEmoji, cuisine, cuisineEmoji, rType,
+           prepTime: timing.prep, cookTime: timing.cook,
+           servings: ings.length > 7 ? '4' : '2',
+           ings, steps, tip };
+}
+
+/* Build the numbered cooking steps based on what's in the pot */
+function buildSteps(ings, rType, method, proteins, vegs, grains, dairy, herbs, spices, pantry, names, has) {
+  const steps = [];
+  const hasOil     = has('Olive Oil') || has('Butter');
+  const hasOnion   = has('Onion');
+  const hasGarlic  = has('Garlic');
+  const hasTomato  = has('Tomato');
+  const hasCream   = has('Cream');
+  const hasWine    = has('Wine');
+  const hasBroth   = has('Broth');
+  const hasCoconut = has('Coconut Milk');
+  const hasSoy     = has('Soy Sauce');
+  const hasLemon   = has('Lemon') || has('Lime');
+  const hasCheese  = has('Cheese');
+  const spiceList  = spices.map(s => s.name);
+  const herbList   = herbs.map(h => h.name);
+
+  /* Prep step */
+  const prepItems = [...proteins, ...vegs].map(i => i.name).slice(0, 5);
+  if (prepItems.length)
+    steps.push(`Prepare your ingredients: ${prepItems.join(', ')}. Wash and chop vegetables into bite-sized pieces. ${proteins.length ? `Season ${proteins.map(p => p.name).join(' and ')} generously with salt and freshly cracked pepper.` : ''}`);
+  else
+    steps.push("Gather all ingredients and measure out your spices before you begin — a cook's best habit.");
+
+  /* Grain base */
+  if (rType === 'Pasta Dish' || rType === 'Noodle Bowl')
+    steps.push(`Bring a large pot of salted water to a rolling boil. Cook ${grains.map(g => g.name).join('/')} until al dente according to package directions. Reserve 1/2 cup pasta water, then drain.`);
+  else if (rType === 'Rice Dish')
+    steps.push(`Rinse the rice until water runs clear. Combine with ${hasBroth ? 'broth' : '2 cups lightly salted water'} in a pot. Bring to a boil, then reduce heat to the lowest setting, cover tightly, and cook 18 minutes. Remove from heat and let steam 5 minutes.`);
+
+  /* Aromatics */
+  if (hasOnion || hasGarlic) {
+    if (rType !== 'Soup / Stew')
+      steps.push(`Heat ${hasOil ? '2 tbsp olive oil or butter' : '2 tbsp neutral oil'} in a ${method === 'stir-fry' ? 'wok or large skillet' : 'wide skillet'} over medium${method === 'stir-fry' ? '-high' : ''} heat. ${hasOnion ? 'Add diced onion; cook 3-4 min until soft and translucent.' : ''} ${hasGarlic ? "Add minced garlic and cook 60 seconds until fragrant — don't let it burn." : ''}`);
+    else
+      steps.push(`Heat ${hasOil ? '2 tbsp olive oil' : '2 tbsp oil'} in a large heavy pot over medium heat. ${hasOnion ? 'Saute diced onion 4 minutes until softened.' : ''} ${hasGarlic ? 'Stir in garlic and cook 1 minute.' : ''}`);
+  } else if (hasOil) {
+    steps.push(`Heat 2 tbsp ${has('Butter') ? 'butter' : 'olive oil'} in a pan over medium heat until shimmering.`);
+  }
+
+  /* Spices */
+  if (spiceList.length)
+    steps.push(`Add spices (${spiceList.join(', ')}) and toast 30-45 seconds, stirring constantly. Blooming spices in fat unlocks layers of flavour you won't get otherwise.`);
+
+  /* Protein */
+  if (proteins.length) {
+    const pNames = proteins.map(p => p.name).join(' and ');
+    if (rType === 'Soup / Stew')
+      steps.push(`Add ${pNames} to the pot. ${has('Chicken') ? 'Brown chicken pieces 2 min per side first for extra depth.' : ''} Pour in ${hasBroth ? 'broth' : '4 cups water'}, bring to a gentle boil, then reduce to a simmer.`);
+    else if (method === 'stir-fry')
+      steps.push(`Push aromatics to the side. Add ${pNames} in a single layer; sear undisturbed 2 min, then stir-fry 2-3 min more until cooked through. Remove and set aside.`);
+    else
+      steps.push(`Add ${pNames} to the pan. Cook ${has('Salmon') ? '3-4 min per side' : has('Shrimp') ? '1-2 min per side until pink and curled' : '4-5 min per side'} until deeply golden. ${hasWine ? 'Deglaze with a splash of wine, scraping up any caramelised bits.' : ''}`);
+  }
+
+  /* Vegetables */
+  const nonAromatics = vegs.filter(v => !['Onion', 'Garlic'].includes(v.name));
+  if (nonAromatics.length) {
+    const harder = nonAromatics.filter(v => ['Carrot','Potato','Broccoli','Corn','Bell Pepper','Eggplant'].includes(v.name)).map(v => v.name);
+    const softer = nonAromatics.filter(v => ['Tomato','Spinach','Zucchini','Mushrooms'].includes(v.name)).map(v => v.name);
+    if (harder.length)
+      steps.push(`Add ${harder.join(', ')} — they need longer heat. Cook ${method === 'stir-fry' ? 'on high heat 3-4 min, tossing frequently' : '5-6 min, stirring occasionally'}.`);
+    if (softer.length)
+      steps.push(`Add ${softer.join(', ')}. ${hasTomato ? 'Let tomatoes break down into a sauce, 3-4 min.' : 'Cook 2-3 min until just tender.'}${has('Spinach') ? ' Spinach will wilt in under a minute.' : ''}`);
+  }
+
+  /* Sauce */
+  if (hasCoconut)
+    steps.push('Pour in coconut milk. Stir well, bring to a gentle simmer, and cook 8-10 min uncovered until the sauce thickens slightly.');
+  else if (hasCream)
+    steps.push("Lower the heat and pour in the cream. Simmer gently 4-5 min, stirring, until the sauce coats the back of a spoon. Don't boil or it may split.");
+  else if (hasSoy)
+    steps.push(`Splash in soy sauce and 2 tbsp water. Toss everything to coat. ${hasLemon ? 'Finish with a squeeze of citrus for brightness.' : 'Taste and adjust seasoning.'} Cook 2 more minutes.`);
+  else if (hasBroth && rType === 'Soup / Stew')
+    steps.push('Simmer uncovered 15-20 min, skimming any foam, until the broth is rich and aromatic and all vegetables are tender.');
+
+  /* Combine grain + sauce */
+  if (rType === 'Pasta Dish')
+    steps.push('Add drained pasta to the sauce. Toss vigorously over medium heat, splashing in pasta water a little at a time until the sauce is glossy and clings to every strand.');
+  else if (rType === 'Rice Dish')
+    steps.push(`${proteins.length ? 'Return the protein to the pan. ' : ''}Add cooked rice and toss over high heat 2-3 min so every grain soaks up the sauce.`);
+  else if (rType === 'Taco / Wrap')
+    steps.push('Warm tortillas in a dry pan 30 sec per side. Spoon the filling down the centre, fold or roll, and serve immediately.');
+
+  /* Finishing touches */
+  let finish = 'Taste and adjust seasoning with salt and pepper.';
+  if (herbList.length) finish += ` Scatter over freshly chopped ${herbList.join(' and ')}.`;
+  if (hasCheese)       finish += ' Grate a generous snowfall of cheese over the top.';
+  if (hasLemon)        finish += ' A final squeeze of lemon or lime brightens every flavour.';
+  steps.push(finish);
+
+  /* Serve */
+  const serveNote = {
+    'Soup / Stew':      'Ladle into deep warmed bowls and serve with crusty bread.',
+    'Pasta Dish':       'Divide between warmed pasta bowls and eat immediately.',
+    'Taco / Wrap':      'Arrange on a platter and let everyone build their own.',
+    'Toast / Sandwich': 'Cut, plate, and serve at once while the bread is still warm.',
+  }[rType] || 'Plate up and enjoy your creation!';
+  steps.push(serveNote);
+
+  return steps.filter(s => s.trim().length > 10);
+}
+
+/* Pick a contextual cooking tip based on key ingredients */
+function pickTip(ings, names, has) {
+  if (has('Pasta'))        return 'Never rinse cooked pasta — the surface starch is what makes the sauce stick.';
+  if (has('Rice'))         return 'Leftovers keep beautifully for 2-3 days and often taste even better the next day.';
+  if (has('Tomato'))       return 'A tiny pinch of sugar balances the acidity of tomatoes perfectly.';
+  if (has('Cumin') || has('Turmeric')) return 'Toast whole spices in a dry pan before grinding for dramatically deeper flavour.';
+  if (has('Chicken') || has('Beef'))   return "Don't move the protein for the first 2 minutes of searing — patience gives you that golden crust.";
+  if (has('Cream'))        return 'Add a squeeze of lemon just before serving a cream sauce to lift the richness.';
+  if (has('Coconut Milk')) return 'Shake the can well before opening — the fat and liquid separate when stored.';
+  const fallbacks = [
+    'Finishing with a drizzle of good olive oil transforms the final dish.',
+    "A splash of cooking liquid (pasta water, broth) is a chef's secret weapon for silky sauces.",
+    'Taste as you cook — salt added early seasons from within, salt added late seasons the surface.',
+    'Let meat rest off the heat for 2-3 minutes before slicing to keep the juices inside.',
+  ];
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+}
+
+/* Render the generated recipe into the modal */
+function renderRecipe(r) {
+  const tags  = r.ings.map(i => `<div class="rp-r-tag">${i.emoji} ${i.name}</div>`).join('');
+  const steps = r.steps.map((s, i) =>
+    `<li class="rp-r-step"><div class="rp-step-num">${i + 1}</div><div class="rp-step-text">${s}</div></li>`
+  ).join('');
+
+  rpRecipeOutput.innerHTML = `
+    <div class="rp-r-header-emoji">${r.emoji}</div>
+    <h2 class="rp-r-title">${r.name}</h2>
+    <p class="rp-r-sub">${r.cuisineEmoji} ${r.cuisine} Cuisine &nbsp;&middot;&nbsp; ${r.rType}</p>
+    <div class="rp-r-meta">
+      <div class="rp-r-chip">Prep ${r.prepTime}</div>
+      <div class="rp-r-chip">Cook ${r.cookTime}</div>
+      <div class="rp-r-chip">Serves ${r.servings}</div>
+    </div>
+    <div class="rp-r-section">Your Ingredients</div>
+    <div class="rp-r-tags">${tags}</div>
+    <div class="rp-r-section">Instructions</div>
+    <ol class="rp-r-steps">${steps}</ol>
+    <div class="rp-r-section">Chef's Tip</div>
+    <div class="rp-tip-box">
+      <span class="rp-tip-icon">&#128161;</span>
+      <span class="rp-tip-text">${r.tip}</span>
+    </div>
+  `;
+}
+</script>
+{% endblock %}

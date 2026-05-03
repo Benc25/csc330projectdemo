@@ -27,134 +27,98 @@
     </div>
 </section>
 
-<!-- User Search -->
-<section class="section-head mt-4">
-    <div>
-        <h2>Search Users</h2>
-        <p>Find a user by name or email to view their profile.</p>
-    </div>
-</section>
-<form action="{{ url_for('curator_dashboard') }}" method="get" class="d-flex gap-2 mb-4">
-    <input type="text" name="q" class="form-control" placeholder="Search by name or email..."
-           value="{{ search_query }}">
-    <button type="submit" class="btn btn-primary">Search</button>
-</form>
-<div class="card-grid">
-    {% for u in users %}
-    <div style="position: relative;">
-        <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" class="recipe-card-link">
-            <article class="recipe-card">
-                <div class="recipe-card-top">
-                    <span class="mini-pill">{{ u.role }}</span>
-                    <span class="muted-small">{{ 'Active' if u.isActive else 'Inactive' }}</span>
-                </div>
-                <h3>{{ u.firstName }} {{ u.lastName }}</h3>
-                <p>{{ u.email }}</p>
-                <div class="recipe-card-footer">
-                    <span class="muted-small">Joined {{ u.dateCreated.strftime('%b %d, %Y') }}</span>
-                    <span>View profile →</span>
-                </div>
-            </article>
-        </a>
-        <form method="POST" action="{{ url_for('curator_delete_user', user_id=u.id) }}"
-              style="position: absolute; top: 10px; right: 10px;"
-              onsubmit="return confirm('Permanently delete {{ u.firstName }} {{ u.lastName }}? This cannot be undone.')">
-            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete user">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                </svg>
-            </button>
-        </form>
-    </div>
-    {% endfor %}
-</div>
+<!-- Two-column layout: Users (left) | Groups (right) -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; align-items: start;">
 
-<!-- Most Popular Recipes -->
-<section class="section-head mt-4">
+    <!-- Users column -->
     <div>
-        <h2>Top Recipes</h2>
-        <p>Top-rated recipes across the platform.</p>
-    </div>
-</section>
-<div class="card-grid">
-    {% for item in popular %}
-    <div style="position: relative;">
-        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-            <article class="recipe-card popular-card">
-                {% if item.recipe.image %}
-                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
-                {% endif %}
-                <div class="recipe-card-content">
-                    <div class="recipe-card-top">
-                        <span class="mini-pill popular-badge">★ Top Rated</span>
-                        <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-                    </div>
-                    <h3>{{ item.recipe.title }}</h3>
-                    <p>{{ item.recipe.description or 'A top-rated Open Kitchen recipe.' }}</p>
-                    <div class="recipe-card-footer">
-                        <span class="card-stars">
-                            {% for i in range(1, 6) %}
-                            <span class="{% if i <= item.avg_rating|round(0,'floor')|int %}star-on{% else %}star-off{% endif %}">★</span>
-                            {% endfor %}
-                            <span class="rating-score">{{ item.avg_rating }} ({{ item.rating_count }})</span>
-                        </span>
-                        <span>Open →</span>
-                    </div>
-                </div>
-            </article>
-        </a>
-        <form method="POST" action="{{ url_for('curator_delete_recipe', recipe_id=item.recipe.id) }}"
-              style="position: absolute; top: 10px; right: 10px;"
-              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
-            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete recipe">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                </svg>
-            </button>
+        <h2 style="margin-bottom: 12px;">Users</h2>
+        <form action="{{ url_for('curator_dashboard') }}" method="get" class="d-flex gap-2 mb-3">
+            {% if group_query %}<input type="hidden" name="gq" value="{{ group_query }}">{% endif %}
+            <input type="text" name="q" placeholder="Search by name or email..." value="{{ search_query }}"
+                   style="flex: 1; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); font: inherit; background: white;">
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
         </form>
-    </div>
-    {% endfor %}
-</div>
 
-<!-- Newest Recipes -->
-<section class="section-head mt-4">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% for u in users %}
+            <div class="recipe-card-wrap">
+                <a href="{{ url_for('curator_user_profile', user_id=u.id) }}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="recipe-card" style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                                <span style="font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.firstName }} {{ u.lastName }}</span>
+                                <span class="mini-pill" style="font-size: .7rem; padding: 2px 8px; flex-shrink: 0;">{{ u.role }}</span>
+                            </div>
+                            <span class="muted-small" style="font-size: .8rem;">{{ u.email }}</span>
+                        </div>
+                        <span class="muted-small" style="font-size: .75rem; flex-shrink: 0;">{{ u.dateCreated.strftime('%b %Y') }}</span>
+                    </div>
+                </a>
+                <form method="POST" action="{{ url_for('curator_delete_user', user_id=u.id) }}"
+                      style="position: absolute; top: 8px; right: 8px;"
+                      onsubmit="return confirm('Permanently delete {{ u.firstName }} {{ u.lastName }}? This cannot be undone.')">
+                    <button type="submit" class="delete-btn" title="Delete user">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            {% else %}
+            <p class="muted-small">No users found.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Groups column -->
     <div>
-        <h2>Newest Recipes</h2>
-        <p>Most recently added recipes on the platform.</p>
-    </div>
-</section>
-<div class="card-grid">
-    {% for item in newest %}
-    <div style="position: relative;">
-        <a href="{{ url_for('view_recipe', recipe_id=item.recipe.id) }}" class="recipe-card-link">
-            <article class="recipe-card">
-                {% if item.recipe.image %}
-                <img class="recipe-card-bg" src="{{ url_for('static', filename='uploads/' + item.recipe.image) }}" alt="">
-                {% endif %}
-                <div class="recipe-card-content">
-                    <div class="recipe-card-top">
-                        <span class="mini-pill">{{ item.category_names[0] if item.category_names else 'Recipe' }}</span>
-                        <span class="muted-small">{{ item.ingredient_count }} ingredients</span>
-                    </div>
-                    <h3>{{ item.recipe.title }}</h3>
-                    <p>{{ item.recipe.description or 'A saved Open Kitchen recipe.' }}</p>
-                    <div class="recipe-card-footer">
-                        <span class="muted-small">{{ item.recipe.dateCreated.strftime('%b %d, %Y') }}</span>
-                        <span>Open →</span>
-                    </div>
-                </div>
-            </article>
-        </a>
-        <form method="POST" action="{{ url_for('curator_delete_recipe', recipe_id=item.recipe.id) }}"
-              style="position: absolute; top: 10px; right: 10px;"
-              onsubmit="return confirm('Delete \'{{ item.recipe.title }}\'? This cannot be undone.')">
-            <button type="submit" class="delete-btn" style="opacity: 1;" title="Delete recipe">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                </svg>
-            </button>
+        <h2 style="margin-bottom: 12px;">Groups</h2>
+        <form action="{{ url_for('curator_dashboard') }}" method="get" class="d-flex gap-2 mb-3">
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            <input type="text" name="gq" placeholder="Search by group name..." value="{{ group_query }}"
+                   style="flex: 1; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); font: inherit; background: white;">
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
         </form>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% for g in groups %}
+            {% set leader = g.members | selectattr('userID', 'equalto', g.leaderID) | first %}
+            <div class="recipe-card-wrap">
+                <a href="{{ url_for('view_group', group_id=g.id) }}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="recipe-card" style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <span style="font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ g.name }}</span>
+                                <span class="mini-pill" style="font-size: .7rem; padding: 2px 8px; flex-shrink: 0;">{{ g.members | length }} members</span>
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                {% for m in g.members[:4] %}
+                                <span style="font-size: .75rem; background: #edf3ff; color: var(--primary-dark); border-radius: 999px; padding: 2px 8px;">{{ m.user.firstName }} {{ m.user.lastName[0] }}.</span>
+                                {% endfor %}
+                                {% if g.members | length > 4 %}
+                                <span style="font-size: .75rem; color: var(--muted);">+{{ (g.members | length) - 4 }} more</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="muted-small" style="font-size: .75rem; flex-shrink: 0;">{{ g.dateCreated.strftime('%b %Y') }}</span>
+                    </div>
+                </a>
+                <form method="POST" action="{{ url_for('curator_delete_group', group_id=g.id) }}"
+                      style="position: absolute; top: 8px; right: 8px;"
+                      onsubmit="return confirm('Delete group \'{{ g.name }}\'? This cannot be undone.')">
+                    <button type="submit" class="delete-btn" title="Delete group">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            {% else %}
+            <p class="muted-small">No groups found.</p>
+            {% endfor %}
+        </div>
     </div>
-    {% endfor %}
+
 </div>
 {% endblock %}
