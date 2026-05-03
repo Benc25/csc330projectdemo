@@ -798,6 +798,8 @@
       }
 
       /* ── Refresh UI ── */
+      const aiCallout = document.getElementById('mp-ai-callout');
+
       function refreshUI() {
         const n = pot.length;
         if (n > 0) {
@@ -808,6 +810,7 @@
           chipsWrap.innerHTML = pot.map(i =>
             `<div class="mp-chip" data-name="${i.name}" title="Remove">${i.name} <span class="mp-chip-x">×</span></div>`
           ).join('');
+          if (aiCallout) aiCallout.style.display = 'none';
         } else {
           badge.classList.remove('mp-show');
           potBtn.classList.remove('mp-has');
@@ -815,6 +818,7 @@
           potList.classList.remove('mp-show');
           chipsWrap.innerHTML = '';
           document.querySelectorAll('tr.mp-ing-row').forEach(r => r.classList.remove('mp-added-row'));
+          if (aiCallout) aiCallout.style.display = '';
         }
       }
 
