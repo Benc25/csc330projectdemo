@@ -1,5 +1,5 @@
 from flask import render_template, request, redirect, url_for, session, flash, jsonify, Response
-import types, os, uuid, csv, random
+import types, os, uuid, csv, random, secrets, string
 from io import StringIO
 from functools import wraps
 from datetime import datetime, timedelta
@@ -8,7 +8,8 @@ from sqlalchemy import or_, func
 from flask_mail import Message
 
 from app import app, db, mail
-from app.forms import CreateRecipeForm, LoginForm, RegisterForm, ProfileSettingsForm
+# Imported ForgotPasswordForm and ResetPasswordForm for password reset workflow
+from app.forms import CreateRecipeForm, LoginForm, RegisterForm, ProfileSettingsForm, ForgotPasswordForm, ResetPasswordForm
 from app.models import (
     Recipe, Ingredient, RecipeCategory, RecipeDietaryTag, RecipeAllergen,
     Category, DietaryTag, Allergen, MeasurementUnit, Rating, Comment, User,
@@ -141,6 +142,35 @@ def send_welcome_email(user):
         print(f"Failed to send welcome email: {e}")
 
 
+def send_password_reset_email(user, reset_url):
+    """
+    Send a password reset email to the user.
+    
+    ENHANCEMENT: Sends secure password reset link valid for 1 hour.
+    
+    Args:
+        user: User object to send reset email to
+        reset_url: Full URL containing the secure reset token for password recovery
+    """
+    try:
+        msg = Message(
+            subject='Password Reset Request - The Open Kitchen',
+            recipients=[user.email],
+            html=f"""
+            <h2>Password Reset Request</h2>
+            <p>Hi {user.firstName},</p>
+            <p>You requested to reset your password. Click the link below to create a new password:</p>
+            <p><a href="{reset_url}" style="background-color: #3c66b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a></p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this reset, please ignore this email.</p>
+            <p>The Open Kitchen Team</p>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Failed to send password reset email: {e}")
+
+
 # =============================================================================
 # Auth Routes
 # =============================================================================
@@ -155,6 +185,10 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and user.check_password(form.password.data):
             session['user_id'] = user.id
+            # If "Remember me" checkbox is checked, set session to persist for 30 days
+            if form.remember.data:
+                session.permanent = True
+                app.permanent_session_lifetime = timedelta(days=30)
             flash(f'Welcome back, {user.firstName}!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -190,6 +224,69 @@ def logout():
     session.pop('user_id', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('dashboard'))
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """
+    Handle password reset requests - generates secure token and sends email
+    
+    ENHANCEMENT: Database schema updated with password_reset_token and password_reset_token_expiry columns
+    to support this functionality. Migration applied: 0ba9ef8aa21c_add_password_reset_fields_to_user.py
+    """
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+    
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            # Generate a secure reset token using secrets module (cryptographically strong)
+            reset_token = secrets.token_urlsafe(32)
+            user.password_reset_token = reset_token
+            # Token expires after 1 hour for security
+            user.password_reset_token_expiry = datetime.now() + timedelta(hours=1)
+            db.session.commit()
+            
+            # Send password reset email with clickable reset link
+            reset_url = url_for('reset_password', token=reset_token, _external=True)
+            send_password_reset_email(user, reset_url)
+            flash('If an account exists with that email, a password reset link has been sent.', 'info')
+        else:
+            # Security best practice: don't reveal if email exists in system
+            flash('If an account exists with that email, a password reset link has been sent.', 'info')
+        
+        return redirect(url_for('login'))
+    
+    return render_template('forgot_password.html', form=form)
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Handle password reset - validates token and allows user to set new password"""
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+    
+    # Find user with matching reset token
+    user = User.query.filter_by(password_reset_token=token).first()
+    
+    # Check if token exists and hasn't expired
+    if not user or (user.password_reset_token_expiry and user.password_reset_token_expiry < datetime.now()):
+        flash('The password reset link is invalid or has expired.', 'error')
+        return redirect(url_for('login'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        # Set new password using secure hashing
+        user.set_password(form.password.data)
+        # Clear reset token to prevent reuse
+        user.password_reset_token = None
+        user.password_reset_token_expiry = None
+        db.session.commit()
+        flash('Your password has been reset successfully. Please log in with your new password.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html', form=form, token=token)
 
 
 # =============================================================================

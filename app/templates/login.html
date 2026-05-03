@@ -24,7 +24,11 @@
             </div>
 
             <div class="field-block">
-                <label for="password">Password</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="password">Password</label>
+                    <!-- Password visibility toggle button - allows users to view password while typing -->
+                    <button type="button" id="togglePassword" style="background: none; border: none; cursor: pointer; color: var(--primary); font-size: 0.9rem; padding: 0; text-decoration: underline;">Show</button>
+                </div>
                 {{ form.password(class='form-control', id='password', type='password', placeholder='Enter your password') }}
                 {% if form.password.errors %}
                     <div class="text-danger" style="font-size: 0.85rem; margin-top: 6px; color: #953632;">
@@ -33,14 +37,44 @@
                 {% endif %}
             </div>
 
+            <!-- Remember me checkbox - keeps user logged in for 30 days -->
+            <div style="margin: 20px 0;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.95rem;">
+                    {{ form.remember(id='remember') }}
+                    <span style="margin-left: 8px;">Remember me on this device</span>
+                </label>
+            </div>
+
             <div class="form-actions" style="justify-content: center; margin-top: 24px;">
                 {{ form.submit(class='btn btn-primary') }}
             </div>
         </form>
 
         <div style="text-align: center; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line);">
+            <!-- ENHANCEMENT: Added "Forgot Password" link styled to match app design and flush with footer -->
+            <p class="muted-small">
+                <a href="{{ url_for('forgot_password') }}" style="color: var(--primary); font-weight: 700; display: inline-block; padding: 8px 0; transition: opacity 0.2s;">Forgot your password?</a>
+            </p>
             <p class="muted-small">Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--primary); font-weight: 700;">Create one</a></p>
         </div>
     </div>
 </div>
+
+<!-- JavaScript for password visibility toggle functionality -->
+<script>
+document.getElementById('togglePassword').addEventListener('click', function(e) {
+    e.preventDefault();
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = this;
+    
+    // Toggle between password and text input types
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = 'Hide';
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = 'Show';
+    }
+});
+</script>
 {% endblock %}

@@ -18,6 +18,10 @@ class User(db.Model):
     disableNotifications = db.Column(db.Boolean, default=False, nullable=False)
     lastSeen = db.Column(db.DateTime, nullable=True, default=None)
     doNotDisturb = db.Column(db.Boolean, default=False, nullable=False)
+    # ENHANCEMENT: Password reset feature - Added to support "Forgot Password" functionality
+    # These columns store secure tokens used for password recovery via email
+    password_reset_token = db.Column(db.String(100), unique=True, nullable=True)  # Secure token for password reset verification
+    password_reset_token_expiry = db.Column(db.DateTime, nullable=True)  # Timestamp for when the reset token expires (1 hour validity)
     recipes = db.relationship('Recipe', backref='author', lazy=True)
     def set_password(self, password):
         self.password = generate_password_hash(password)

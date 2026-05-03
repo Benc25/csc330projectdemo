@@ -25,8 +25,10 @@ class ProfileSettingsForm(FlaskForm):
     submit = SubmitField('Save Changes')
 
 class LoginForm(FlaskForm):
+    """Form for user login with enhanced features"""
     email = StringField('Email', validators=[DataRequired(message='Email is required.'), Email(message='Invalid email address.')])
     password = PasswordField('Password', validators=[DataRequired(message='Password is required.')])
+    remember = BooleanField('Remember me on this device')  # Allows users to stay logged in for 30 days
     submit = SubmitField('Sign In')
 
 class RegisterForm(FlaskForm):
@@ -41,3 +43,14 @@ class RegisterForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError('Email is already registered. Please log in.')
+
+class ForgotPasswordForm(FlaskForm):
+    """Form for users to request a password reset"""
+    email = StringField('Email', validators=[DataRequired(message='Email is required.'), Email(message='Invalid email address.')])
+    submit = SubmitField('Send Reset Link')
+
+class ResetPasswordForm(FlaskForm):
+    """Form for users to set a new password after receiving reset link"""
+    password = PasswordField('New Password', validators=[DataRequired(message='Password is required.'), Length(min=8, message='Password must be at least 8 characters.')])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(message='Please confirm your password.'), EqualTo('password', message='Passwords do not match.')])
+    submit = SubmitField('Reset Password')
