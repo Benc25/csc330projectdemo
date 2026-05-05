@@ -25,6 +25,9 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password, password)
 
+    def __repr__(self):
+        return self.firstName + ' ' + self.lastName + ': ' + self.role
+
 class MeasurementUnit(db.Model):
     __tablename__ = 'measurement_units'
 
@@ -35,7 +38,10 @@ class MeasurementUnit(db.Model):
     isActive = db.Column(db.Boolean, default=True)
 
     ingredients = db.relationship('Ingredient', backref='unit', lazy=True)
-    
+
+    def __repr__(self):
+        return self.name + ' (' + self.abbreviation + '): ' + self.system
+
 class Recipe(db.Model):
     __tablename__ = 'recipes'
 
@@ -71,6 +77,8 @@ class Recipe(db.Model):
         )
         return new_recipe
 
+    def __repr__(self):
+        return self.title + ': ' + str(self.baseServings) + ' servings'
 
 class Ingredient(db.Model):
     __tablename__ = 'ingredients'
@@ -80,12 +88,18 @@ class Ingredient(db.Model):
     unitID = db.Column(db.Integer, db.ForeignKey('measurement_units.id'), nullable=False)
     name = db.Column(db.String(32), nullable=False)
     quantity = db.Column(db.Float, nullable=False)
-
+    
+    def __repr__(self):
+        return self.name + ': ' + str(self.quantity)
+    
 class Category(db.Model):
     __tablename__ = 'categories'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True, nullable=False)
+
+    def __repr__(self):
+        return self.name
 
 class RecipeCategory(db.Model):
     __tablename__ = 'recipe_categories'
@@ -96,17 +110,27 @@ class RecipeCategory(db.Model):
 
     category = db.relationship('Category', backref='recipe_categories')
 
+    def __repr__(self):
+        return 'RecipeCategory: recipeID=' + str(self.recipeID) + ' categoryID=' + str(self.categoryID)
+
+
 class Allergen(db.Model):
     __tablename__ = 'allergens'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True, nullable=False)
 
+    def __repr__(self):
+        return self.name
+
 class DietaryTag(db.Model):
     __tablename__ = 'dietary_tags'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True, nullable=False)
+
+    def __repr__(self):
+        return self.name
 
 class RecipeAllergen(db.Model):
     __tablename__ = 'recipe_allergens'
@@ -117,6 +141,10 @@ class RecipeAllergen(db.Model):
 
     allergen = db.relationship('Allergen', backref='recipe_allergens')
 
+    def __repr__(self):
+        return 'RecipeAllergen: recipeID=' + str(self.recipeID) + ' allergenID=' + str(self.allergenID)
+
+
 class RecipeDietaryTag(db.Model):
     __tablename__ = 'recipe_dietary_tags'
 
@@ -125,6 +153,9 @@ class RecipeDietaryTag(db.Model):
     dietaryTagID = db.Column(db.Integer, db.ForeignKey('dietary_tags.id'), nullable=False)
 
     dietaryTag = db.relationship('DietaryTag', backref='recipe_dietary_tags')
+
+    def __repr__(self):
+        return 'RecipeDietaryTag: recipeID=' + str(self.recipeID) + ' dietaryTagID=' + str(self.dietaryTagID)
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -135,6 +166,9 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=True)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
+    def __repr__(self):
+        return 'Comment by userID: ' + str(self.authorID) + ': ' + self.content[:50]
+
 class Rating(db.Model):
     __tablename__ = 'ratings'
 
@@ -143,6 +177,9 @@ class Rating(db.Model):
     userID = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     stars = db.Column(db.Integer, nullable=False)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    def __repr__(self):
+        return 'Rating by userID ' + str(self.userID) + ': ' + str(self.stars) + ' stars'
 
 class QuickTip(db.Model):
     __tablename__ = 'quick_tips'
@@ -154,6 +191,8 @@ class QuickTip(db.Model):
     content = db.Column(db.Text, nullable=False)
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
+    def __repr__(self):
+        return 'Recipes: recipeID=' + str(self.recipeID) + 'Title: ' +  self.title + ': ' + self.content[:50]
 
 class Notification(db.Model):
     __tablename__ = 'notification'
@@ -166,6 +205,9 @@ class Notification(db.Model):
     isRead = db.Column(db.Boolean, default=False)
     dateCreated = db.Column(db.DateTime, default=datetime.now)
 
+    def __repr__(self):
+        return 'Notification: id=' + str(self.id) + ' userID=' + str(self.userID) + ' title=' + str(self.title) + ' recipeID=' + str(self.recipeID) + ' isRead=' + str(self.isRead)
+
 class Group(db.Model):
     __tablename__ = 'groups'
     id = db.Column(db.Integer, primary_key=True)
@@ -177,6 +219,8 @@ class Group(db.Model):
     members = db.relationship('GroupMember', backref='group', lazy=True)
     messages = db.relationship('GroupMessage', backref='group', lazy=True)
 
+    def __repr__(self):
+        return 'Group: id=' + str(self.id) + ' leaderID=' + str(self.leaderID) + ' name=' + str(self.name)
 
 class GroupMember(db.Model):
     __tablename__ = 'group_members'
@@ -187,6 +231,8 @@ class GroupMember(db.Model):
 
     user = db.relationship('User', backref='memberships', lazy=True)
 
+    def __repr__(self):
+        return 'GroupMember: groupID=' + str(self.groupID) + ' userID=' + str(self.userID)
 
 class GroupMessage(db.Model):
     __tablename__ = 'group_messages'
@@ -198,6 +244,8 @@ class GroupMessage(db.Model):
 
     sender = db.relationship('User', foreign_keys=[senderID])
 
+    def __repr__(self):
+        return 'GroupMessage: id=' + str(self.id) + ' groupID=' + str(self.groupID) + ' senderID=' + str(self.senderID)
 
 class GroupRecipe(db.Model):
     __tablename__ = 'group_recipes'
@@ -210,6 +258,9 @@ class GroupRecipe(db.Model):
     recipe = db.relationship('Recipe', foreign_keys=[recipeID])
     sharedBy = db.relationship('User', foreign_keys=[sharedByID])
 
+    def __repr__(self):
+        return 'GroupRecipe: groupID=' + str(self.groupID) + ' recipeID=' + str(self.recipeID) + ' sharedByID=' + str(self.sharedByID)
+
 class SavedRecipe(db.Model):
     __tablename__ = 'saved_recipes'
 
@@ -219,3 +270,6 @@ class SavedRecipe(db.Model):
     dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
     recipe = db.relationship('Recipe', backref='saved_by')
+
+    def __repr__(self):
+        return 'SavedRecipe: userID=' + str(self.userID) + ' recipeID=' + str(self.recipeID)
